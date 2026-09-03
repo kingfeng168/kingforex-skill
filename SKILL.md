@@ -1,7 +1,7 @@
 ---
 name: kingforex-skill
 agent_created: true
-description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易体系与纪律框架,覆盖宏观利率地基、盘前计划筛选、入场执行、持仓管理、离场策略、交易记录复盘、心理纪律全链路,以及外汇/黄金/原油专项、跨市场联动、市场微观结构、风险组合管理、工具数据源九大模块。当用户要求制定下一交易日交易计划、筛选高确定性机会、分析美债/实际利率/盈亏平衡通胀/点阵图/FedWatch/央行周期、做外汇(套息/避险/商品货币/美元微笑)或黄金(TIPS锚/金银比/央行购金)或原油(EIA/OPEC/期限结构)的宏观分析、搭建或更新跨市场宏观仪表盘、按ATR计算止损与风险仓位、做相关性或净暴露压力测试、处理非农/FOMC/CPI/EIA事件交易、写交易日志或周月复盘,以及提及交易计划/头寸管理/止损止盈/仓位计算/复盘/不摊平/连续亏损暂停等纪律关键词,或要求从权威数据源(FRED/FedWatch/CFTC/BIS/EIA/IMF/World Bank/QuantGist/WGC等)获取信息、用 BIS SDMX v2 或 EIA v2 或 IMF SDMX 3.0 或 World Bank Open Data 或 QuantGist 或实时行情 API(Frankfurter/gold-api/US Treasury/exchangerate-api/新浪)拉取宏观/外汇/原油/事件情报/实时报价数据、把宏观分析落地为可执行交易策略、做宏观到实盘到策略的链路分析、从宏观/跨市场/盘面多维度印证分析、进行盘面分析、解读K线图或盘面、识别K线形态(锤子线/上吊线/吞没/孕线/流星线/倒锤子线/内包线)、从MT4导出K线做技术分析时,加载本技能。"
+description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易体系与纪律框架,覆盖宏观利率地基、盘前计划筛选、入场执行、持仓管理、离场策略、交易记录复盘、心理纪律全链路,以及外汇/黄金/原油专项、跨市场联动、市场微观结构、风险组合管理、工具数据源九大模块。当用户要求制定下一交易日交易计划、筛选高确定性机会、分析美债/实际利率/盈亏平衡通胀/点阵图/FedWatch/央行周期、做外汇(套息/避险/商品货币/美元微笑)或黄金(TIPS锚/金银比/央行购金)或原油(EIA/OPEC/期限结构)的宏观分析、按ATR计算止损与风险仓位、做相关性或净暴露压力测试、处理非农/FOMC/CPI/EIA事件交易、写交易日志或周月复盘,以及提及交易计划/头寸管理/止损止盈/仓位计算/复盘/不摊平/连续亏损暂停/资金管理/仓位管理/凯利公式/R倍数/回撤控制/本金保护/风险预算/破产风险/资金曲线等纪律与资金管控关键词,或要求从权威数据源(FRED/FedWatch/CFTC/BIS/EIA/IMF/World Bank/QuantGist/WGC等)获取信息、用 BIS SDMX v2 或 EIA v2 或 IMF SDMX 3.0 或 World Bank Open Data 或 QuantGist 或实时行情 API(Frankfurter/gold-api/US Treasury/exchangerate-api/新浪)拉取宏观/外汇/原油/事件情报/实时报价数据、把宏观分析落地为可执行交易策略、做宏观到实盘到策略的链路分析、从宏观/跨市场/盘面多维度印证分析、进行盘面分析、解读K线图或盘面、识别K线形态(锤子线/上吊线/吞没/孕线/流星线/倒锤子线/内包线/十字星/marubozu/刺透线/乌云盖顶/启明星/黄昏星/红三兵/黑三鸦)、做通道与趋势线分析、判定均线多头/空头排列与金叉死叉、解读 MACD/RSI/布林带/随机指标、识别跳空/窗口(缺口)、用 ADX 判定趋势强度、画扇形线与斐波那契回撤、识别头肩/双顶底/三角/旗形/楔形等图表形态、从MT4导出K线做技术分析、联网获取K线数据(15min/1H/4H/1D/1W)/从Twelve Data获取K线/用户已发K线数据待分析时,加载本技能。"
 ---
 
 # 手工交易体系(宏观 · 外汇 · 贵金属 · 商品)
@@ -16,7 +16,7 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 
 1. **权威取数(第 0 阶)**:所有输入必须来自 `references/data_sources.md` 列出的权威渠道(FRED、FedWatch、CFTC、BIS、EIA、IMF、World Bank、QuantGist、实时行情源 Frankfurter/gold-api/US Treasury/exchangerate-api/新浪、IEA、OPEC、WGC、央行官网、用户"全球金融日报"JSON)。每条结论标注 `[源 | 截至]`;禁用未注明来源的社媒/自媒体作为方向依据。
 2. **宏观研判(第一阶)**:回答利率地基三问、判定四大央行周期与宏观 Regime、定美元强弱与 risk-on/off。这是所有品种的方向地基。
-3. **盘面分析(第二阶)**:在宏观定向下,用 K 线与技术结构(趋势/区间/震荡、关键位、K线形态、ATR、量价)确认"现在能不能做、怎么做"。宏观对、盘面不对,仍不入场。K 线形态部分可直接调用 `scripts/kline_read.py` 做**客观盘面解读**(自动输出趋势背景、市场结构、关键位、Morris 量化形态评级与确认状态)。
+3. **盘面分析(第二阶)**:在宏观定向下,用 K 线与技术结构(趋势/区间/震荡、关键位、K线形态、ATR、量价)确认"现在能不能做、怎么做"。宏观对、盘面不对,仍不入场。K 线形态部分可直接调用 `scripts/kline_read.py` 做**客观盘面解读**(自动输出趋势背景、市场结构、关键位、Morris 量化形态评级与确认状态);若用户**已发送 K 线数据**,直接读入分析;若**未发送**,可用 `--fetch` 经 Twelve Data 联网抓取 15min/1H/4H/1D/1W 五周期(需 API Key,缺失或失败则明确提示改用本地 CSV/文本,**绝不编造价格**)。
 4. **交易策略(第三阶)**:把上述两层收敛为含品种/方向/触发/入场区/止损(ATR)/目标/仓位/失效条件的可执行计划,并用 `scripts/exposure.py` 做风险体检。
 
 完整推导模板见 `assets/analysis_to_strategy_template.md`(含每阶 Gate 与降级规则)。
@@ -62,8 +62,7 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
    - 美联储 / 欧央行 / 日央行 / 英央行各自处在哪个货币政策周期(收紧 / 中性 / 宽松)。
 2. 建立或更新**主要央行政策对比表**(目标、工具、资产负债表、前瞻指引)与**收益率曲线状态**(陡峭化 / 平坦化 / 倒挂及其对外汇商品的含义)。
 3. 判断当前**宏观 regime**(四选一):增长强+通胀升 / 增长弱+通胀仍高 / 衰退预期+通胀回落 / 流动性危机避险。
-4. 用 `assets/macro_dashboard_template.md` 更新跨市场仪表盘九宫格:
-   DXY、US10Y、10Y TIPS、盈亏平衡通胀、黄金、WTI、Brent、铜、标普500、VIX、信用利差、AUD/JPY、USD/CAD、USD/CNH。
+4. 在交易计划模板中标注跨市场关键信号与方向(DXY、US10Y、10Y TIPS、盈亏平衡、黄金、WTI/Brent、铜、标普500、VIX、信用利差、AUD/JPY、USD/CAD、USD/CNH 的方向与背离);**本技能不单独维护看板/九宫格**,信号直接汇入交易计划与盘面研判,聚焦"验证方向 + 找触发"。
 5. 判断今天是 **risk-on 还是 risk-off**,并标记当日**经济日历**高风险事件(非农、CPI、FOMC、PMI、EIA)。
 
 ### 步骤 1 — 计划与筛选
@@ -157,15 +156,18 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 | `references/oil.md` | 模块四 原油 | EIA 库存、OPEC+、期限结构、WTI-Brent、裂解价差 |
 | `references/cross_market.md` | 模块五 跨市场 | risk-on/off、regime、滚动相关性、铜金比/油金比/金银比 |
 | `references/microstructure.md` | 模块六 微观结构 | Volume Profile、订单流、流动性扫荡、事件执行 |
-| `references/ta_reading.md` | 模块九 盘面分析 | **Morris 量化 K 线语言**(形态统计评级/确认机制/预测时效)、趋势/区间、关键位体系、量价、ATR、盘面分析清单 |
+| `references/ta_reading.md` | 模块九 盘面分析 | **Morris 量化 K 线语言**(形态统计评级/确认机制/预测时效)、**经典日本蜡烛图形态**(十字星/纺锤/marubozu/刺透/乌云盖顶/启明星/黄昏星/红三兵/黑三鸦)、趋势/区间、关键位体系、量价、ATR、盘面分析清单 |
 | `references/data_sources.md` | 信息溯源总纲 | 所有模块的权威取数渠道(FRED/FedWatch/CFTC/BIS/EIA/IMF/World Bank/QuantGist/实时行情 Frankfurter·gold-api·US Treasury·exchangerate-api·新浪/IEA/OPEC/WGC/央行官网)与标注纪律 |
+| `references/indicators.md` | 技术指标详解 | 均线(MA/SMA/EMA/金叉死叉/多头空头排列/均线带)、ATR(真实波幅/吊灯止损/波动 regime)、MACD(DIF/DEA/柱/背离)、RSI、布林带、随机/KDJ、成交量,以及指标组合纪律与陷阱(同轴不叠加、四类正交组合) |
+| `references/channels.md` | 通道与图表形态 | 趋势线、上升/下降/水平通道画法、通道交易法则、通道突破与回踩(throwback)、中线;经典形态(头肩/双顶底/三角/旗形/三角旗/楔形/圆底)及其确认与度量目标 |
 | `references/risk_psychology.md` | 模块七+八 风险与心理 | 仓位计算、组合暴露、压力测试、纪律、复盘 |
+| `references/money_management.md` | 模块补充 资金管控 | 仓位方法论(固定分数/凯利/R倍数)、风险预算分层、回撤降仓阶梯、连败暂停、保证金安全垫、破产风险,以及 `scripts/risk_unit.py` 用法 |
 
 ## 模板(直接套用输出)
 
 - `assets/trade_plan_template.md` — 次日交易计划(8 字段 + 情景预案)。
 - `assets/trade_journal_template.md` — 交易日志(逐笔 + 周/月复盘)。
-- `assets/macro_dashboard_template.md` — 跨市场宏观仪表盘九宫格 + 央行对比表。
+- *(已移除 `assets/macro_dashboard_template.md`:本技能不再维护独立看板/九宫格,跨市场信号直接汇入交易计划与盘面研判)*
 - `assets/scenario_plan_template.md` — 事件日"情景—反应"预案(NFP/FOMC/CPI/EIA)。
 - `assets/analysis_to_strategy_template.md` — 宏观研判→跨市场验证→实盘结构→可执行策略的三阶闭环模板(含 Gate 与降级规则)。
 
@@ -173,12 +175,13 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 
 - `scripts/position_size.py` — 输入账户权益、单笔风险%、止损距离(ATR 或点数)、合约乘数,输出**手数**与风险金额;支持 FX / 黄金 / 原油品种参数。
 - `scripts/exposure.py` — 输入多笔持仓的方向与手数,计算**组合净方向暴露**与相关性集中度,标记是否超过总资金 3%–5% 上限或形成单一美元空头暴露;附 FOMC 意外 / 美股-5% / 油价-10% 压力测试。
+- `scripts/risk_unit.py` — **资金管控工具箱**(纯标准库):`kelly`(凯利/半凯利/硬封顶1%)、`expectancy`(R倍数期望值)、`drawdown`(回撤降仓查表)、`ruin`(固定分数法破产风险蒙特卡洛);把资金管控从经验变为可算数字,详见 `references/money_management.md`。
 - `scripts/bis_fetch.py` — **BIS 官方统计 API(SDMX v2,无需 key)**:拉取各国央行政策利率(`WS_CBPOL`)、美元汇率(`WS_XRU`)、有效汇率(`WS_EER`)、全球流动性(`WS_GLI`),输出 CSV,供宏观利率地基与外汇研判直接使用。
-- `scripts/eia_fetch.py` — **EIA v2 API(原油模块,需自备 key,配置方式见 README「密钥配置」)**:拉取周度原油库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),输出 CSV,供原油模块与 EIA 事件交易研判直接使用(sndw 路由强制 `frequency=weekly`,系列用 `facets[series][]` 过滤;已移除无对应 ID 的 `crude_prod` 预设)。
+- `scripts/eia_fetch.py` — **EIA v2 API(原油模块,key 已配置于 `scripts/.eia_key`,不入 zip)**:拉取周度原油库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),输出 CSV,供原油模块与 EIA 事件交易研判直接使用(sndw 路由强制 `frequency=weekly`,系列用 `facets[series][]` 过滤;已移除无对应 ID 的 `crude_prod` 预设)。
 - `scripts/imf_fetch.py` — **IMF SDMX 3.0 API(宏观/外汇,无需 key,base 可配)**:拉取 COFER 美元储备份额、IFS 实际有效汇率/官方储备/货币总量、WEO 宏观预测、BOP 国际收支、DOT 贸易方向,输出 CSV,供宏观利率地基与外汇研判直接使用(编写时 IMF 端点临时不可达,需本地 `--list` 验证连通性)。
 - `scripts/worldbank_fetch.py` — **World Bank Open Data API(宏观/外汇基本面,无需 key)**:拉取实际利率 `FR.INR.RINR`、CPI 通胀 `FP.CPI.TOTL.ZG`、经常账户占 GDP `BN.CAB.XOKA.GD.ZS`、GDP 增速 `NY.GDP.MKTP.KD.ZG`、官方汇率 `PA.NUS.FCRF`、外储 `FI.RES.TOTL.CD`、政府债务 `GC.DOD.TOTL.GD.ZS`,输出 CSV,直接支撑利率平价(IRP)/套息利差、中期汇率方向与 EM 脆弱性研判(本环境实测 HTTP 200 可用)。
 - `scripts/quantgist_fetch.py` — **QuantGist API v1(事件驱动/地缘情报层,需 X-API-Key)**:拉取经济日历/事件(`actual/forecast/surprise_pct`)、宏数据最近值(CPI/NFP/PCE/FOMC 等别名)、**新闻雷达 `news/radar`**(地缘/油价供给/制裁/央行意外/中东风险/OPEC 主题,含 `impact_score`、`confidence`、`affected_assets` 如 GLD/XAUUSD/CL/USO)、商品 ETF 快照(GLD/USO 实时价)、情绪/意外/影响力排名,输出 CSV,补 BIS/EIA/IMF/World Bank 只有宏观基本面、缺事件情报的短板(部分端点 Starter+ 套餐限制,返回 402 时提示升级)。
-- `scripts/kline_read.py` — **K 线盘面解读引擎(MT4 导出 CSV / 粘贴文本双输入,无需 key,纯标准库)**:输出趋势背景(ATR 归一化摆动斜率,样本不足时 EMA 兜底)、市场结构(HH/HL/LH/LL)、EMA20/50 排列、ATR(14)、关键支撑阻力与整数关口、**Morris《蜡烛图精解》量化形态识别**(倒锤子线/上吊线/锤子线/流星线/吞没/孕线/内包线),每个形态附 **1 日胜率、净盈亏比 pnl1、★评级、确认要求与确认状态(已确认/已证伪/待确认)**,自动过滤已证伪形态。支持 `--json`(结构化)与 `--html`(ECharts K 线标注图)。形态标准与统计表见 `references/ta_reading.md` 第 2 节。
+- `scripts/kline_read.py` — **K 线盘面解读引擎(双输入:①用户 MT4 导出 CSV / 粘贴文本,②`--fetch` 联网抓取,纯标准库)**:输出趋势背景(ATR 归一化摆动斜率,样本不足时 EMA 兜底)、市场结构(HH/HL/LH/LL)、EMA20/50 排列、ATR(14)、关键支撑阻力与整数关口、**Morris《蜡烛图精解》量化形态识别**(倒锤子线/上吊线/锤子线/流星线/吞没/孕线/内包线),每个形态附 **1 日胜率、净盈亏比 pnl1、★评级、确认要求与确认状态(已确认/已证伪/待确认)**,自动过滤已证伪形态;另输出**回归通道**(上/中/下轨与突破/跌破状态)、**MACD**(DIF/DEA/柱/近期金叉死叉/顶底背离)、**RSI(14)**、**布林带**(20,±2σ)、**随机 %K/%D**,以及**经典日本蜡烛图形态补充集**(十字星/纺锤/marubozu/刺透/乌云盖顶/启明星/黄昏星/红三兵/黑三鸦)。支持 `--json`(结构化)与 `--html`(ECharts K 线标注图,含通道轨线)。**`--fetch` 模式**:当用户未发送 K 线时,经 `scripts/kline_fetch.py` 从 Twelve Data 权威抓取 15min/1H/4H/1D/1W 五周期并逐周期自动分析;API Key 缺失/网络受限/品种不支持时,仅报告原因并引导改用 `--csv`/`--text`,**严禁自行编造或估算任何价格**。形态标准与统计表见 `references/ta_reading.md` 第 2 节;指标算法与信号纪律见 `references/indicators.md`;通道与图表形态见 `references/channels.md`;K 线抓取源与纪律见 `references/data_sources.md`。
 - `scripts/live_market_fetch.py` — **实时行情聚合 API(外汇/黄金现货实时报价,无需 key,纯标准库)**:聚合 5 个本环境实测可达、免 key 源——Frankfurter(ECB 官方日参考汇率 `fx_ref`)、gold-api.com(伦敦金 XAU 现货价 `gold`)、US Treasury Fiscal Data(美债收益率/汇率 `ust_yield`)、exchangerate-api(open.er-api.com,150+ 货币 `fx_all`)、新浪财经(USDCNY 即期 + 伦敦金 hf_XAU **真实时**,需 Referer+GBK 解码 `sina`);另支持 `--preset all` 一键聚合。输出 CSV(UTF-8-SIG)或 JSON,直接服务盘中实时报价与事件前后价格反应监控(本环境 2026-08-27 复测全部 200/GBK 实时)。
 
 调用示例(用受管 Python):
@@ -198,7 +201,9 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 `python scripts/kline_read.py --csv "./output/EURUSD_H1.csv" --symbol EURUSD --tf H1 --last 120 --json --html --out "./output"`
 `python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880
 2026-08-21,1.0880,1.0920,1.0860,1.0915" --symbol EURUSD --tf D1 --last 60`
-`# --text 分隔符可为 逗号/分号/制表符/空格,列数自适应:date,o,h,l,c[,v] 或 date,time,o,h,l,c[,v] 均可,可直接粘 MT4 剪贴板`
+`python scripts/kline_read.py --fetch --symbol USDJPY --api-key <TWELVEDATA_KEY>   # 未发K线时联网抓取15min/1H/4H/1D/1W并逐周期分析`
+`python scripts/kline_read.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --json --out "./output"`
+`python scripts/kline_fetch.py --symbol USOIL --interval 1h --api-key <TWELVEDATA_KEY>   # 单源单周期抓取(可输出CSV)`
 
 ## 工具与数据源集成(权威渠道)
 
@@ -207,22 +212,42 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 - **宏观利率**:FRED(`DGS10`/`DFII10`/`T10YIE`)、美联储官网(点阵图/SEP)、CME FedWatch、**IMF SDMX 3.0 API(`scripts/imf_fetch.py`:IFS 实际有效汇率 `PRX_REER`/官方储备/货币总量、WEO 宏观预测,无需 key,需本地验证连通性)**、**World Bank Open Data API(`scripts/worldbank_fetch.py`:实际利率 `FR.INR.RINR`/CPI 通胀 `FP.CPI.TOTL.ZG`/GDP 增速 `NY.GDP.MKTP.KD.ZG`/官方汇率 `PA.NUS.FCRF`,无需 key)**。
 - **外汇**:CFTC COT/TFF(持仓拥挤度)、**BIS SDMX v2 API(`scripts/bis_fetch.py`:政策利率 `WS_CBPOL` / 美元汇率 `WS_XRU` / 有效汇率 `WS_EER` / 全球流动性 `WS_GLI`,无需 key)**、**IMF SDMX 3.0 API(`scripts/imf_fetch.py`:COFER 美元储备份额——全球去美元化/美元信用结构性核心指标,无需 key,需本地验证连通性)**、**World Bank Open Data API(`scripts/worldbank_fetch.py`:实际利率 `FR.INR.RINR`/经常账户占 GDP `BN.CAB.XOKA.GD.ZS`/外储 `FI.RES.TOTL.CD`——利率平价(IRP)、中期汇率方向与 EM 脆弱性,无需 key)**、**实时行情 API(`scripts/live_market_fetch.py`:Frankfurter ECB 日参考汇率 `fx_ref`、exchangerate-api 150+ 货币 `fx_all`、新浪 USDCNY **真实时** `sina`,均无需 key)**、ECB/BoJ/BoE 官网、PBOC 中间价。
 - **黄金**:World Gold Council(供需/央行购金/ETF)、LBMA 定盘、CFTC 持仓、**QuantGist API(`scripts/quantgist_fetch.py`:`news/radar` 地缘主题包含 GLD/XAUUSD、商品 ETF 快照 GLD 实时价,需 X-API-Key)**、**实时行情 API(`scripts/live_market_fetch.py`:gold-api.com 伦敦金 XAU 现货价 `gold`、新浪 hf_XAU **真实时** `sina`,均无需 key)**。
-- **原油**:**EIA v2 API(`scripts/eia_fetch.py`:周度库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),需自备 key)**、IEA、OPEC(MOMR)、API 补充、**QuantGist API(`scripts/quantgist_fetch.py`:`news/radar` 含 oil-supply/middle-east-risk/opec 主题与 CL/USO 受影响资产、商品 ETF 快照 USO,需 X-API-Key)**。
+- **原油**:**EIA v2 API(`scripts/eia_fetch.py`:周度库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),key 已配置 `scripts/.eia_key`)**、IEA、OPEC(MOMR)、API 补充、**QuantGist API(`scripts/quantgist_fetch.py`:`news/radar` 含 oil-supply/middle-east-risk/opec 主题与 CL/USO 受影响资产、商品 ETF 快照 USO,需 X-API-Key)**。
 - **跨市场**:TradingView 图表模板、用户"全球金融日报"JSON(复用 40 品种,免重复采集)。
+- **K 线历史(盘面分析用)**:当用户未发送 K 线时,**Twelve Data API(`scripts/kline_fetch.py` + `kline_read.py --fetch`)** 是中国大陆可直连、免翻墙的权威 OHLC 历史源,覆盖外汇/黄金/原油及 15min/1h/4h/1day/1week 五周期,需免费 API Key(环境变量 `TWELVEDATA_API_KEY` 或 `--api-key`)。抓取严格遵循**不编造铁律**:任一周期失败仅报告原因跳过,全部失败则明确告知"无法获取权威 K 线数据"并引导改用本地 CSV/文本,绝不估算价格。
 - **事件日历**:美联储日历、Trading Economics、Investing.com、**QuantGist API(`scripts/quantgist_fetch.py`:`calendar`/`events` 含 `actual/forecast/surprise`、宏数据 `macro/latest` CPI/NFP/FOMC,需 X-API-Key)**。
 
 铁律:结论标注 `[源 | 截至]`;社媒/自媒体仅作情绪参考,不作方向依据。
 
-## 输出规范
+## 输出规范(强制)
 
-- 输出交易计划用 `assets/trade_plan_template.md` 结构;事件日用情景预案结构。
+- **输出交易计划时**,AI 必须严格按以下表格输出(数字必须具体,不得省略任何行):
+  | 项目 | 具体数值 |
+  | :--- | :--- |
+  | **交易品种** | XAUUSD / EURUSD |
+  | **方向** | Buy / Sell |
+  | **挂单类型** | Limit / Stop |
+  | **入场价格** | （精确到小数点后2位） |
+  | **止损价格** | （前低/前高外扩5点，或 1.5倍 ATR） |
+  | **止盈目标1** | （盈亏比 1:1，平仓50%） |
+  | **止盈目标2** | （盈亏比 1:2 或 1:3，移动止损） |
+  | **仓位计算参数** | 账户权益 * 1% / （入场价-止损价）* 合约乘数 = **建议开仓手数** |
+  | **计划失效条件** | （例如：若1小时内未触及入场价，或价格反向突破XX，则撤单） |
+
+  > **额外纪律提醒**:本计划仅基于当前静态数据。若挂单后遇到突发事件,请手动撤单。止损不后移,不加仓。
+- **分析结论只分两种,按实际判断输出,不强行每次都给交易结论**:
+  - **存在高确定性机会**(宏观/跨市场/盘面三维印证共振,且风险可控) → 按下方表格输出交易计划(可多行,每行一个机会);事件日仍套用情景预案结构。
+  - **不适合交易**(三维未共振 / 信号冲突 / 重大事件窗口前流动性差 / 无合格风险收益比触发) → 直接判定输出:**【今日无交易】**。无需硬凑交易计划,空仓即结论。
+- **本技能聚焦分析与交易策略制定,不维护任何数据看板/仪表盘**;跨市场信号直接汇入交易计划与盘面研判(见 `references/cross_market.md`)。
 - 交易策略须以文字清晰写出入场区 / 止损 / 目标,不凭感觉开仓;盘面分析结论(结构、关键位、K线信号、ATR)见 `references/ta_reading.md`。
+- **仓位计算**由 `scripts/position_size.py` 按风险%反推;挂单类型区分 Limit(限价挂单,回踩入场)与 Stop(突破/破位追单)。
 - 涉及仓位/止损计算,优先调用 `scripts/` 给出精确数字,不靠心算。
 - 任何结论区分"事实/数据"与"观点/概率";事件交易强调"预期差比方向更重要"。
 - 不生成自动化交易代码,不代客下单;本技能只服务于手工交易者的决策与纪律。
 
 ## 密钥安全（EIA / QuantGist）
 
-- **EIA key**:通过命令行 `--api-key`、环境变量 `EIA_API_KEY`,或脚本同目录 `.eia_key`(单行纯文本)提供;读取优先级:`--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。**密钥不得硬编码进脚本源码,`.eia_key` 已在 `.gitignore` 中排除**,不会随仓库分发。
-- **QuantGist key**:通过环境变量 `QUANTGIST_API_KEY` 或 `--api-key` 传入,同样不硬编码进脚本。
-- **原则**:真实密钥(第三方 API key)一律不落盘于可分发产物(仓库/zip/源码),避免泄露。如怀疑泄露,立即到对应平台吊销并换新 key。
+- **EIA key**:已写入 `scripts/.eia_key`(脚本同目录单行纯文本),**仅本地存在、不进入 `kingforex-skill.zip`、不写进脚本源码**。读取优先级:`--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装/迁移 skill 后需重新生成该文件或设置环境变量。
+- **QuantGist key**:通过环境变量 `QUANTGIST_API_KEY` 或 `--api-key` 传入,同样不硬编码进脚本与 zip。
+- **Twelve Data key**(K 线历史抓取,`scripts/kline_fetch.py` / `kline_read.py --fetch`):通过环境变量 `TWELVEDATA_API_KEY` 或 `--api-key` 传入,免费注册 https://twelvedata.com 获取;同样不硬编码进脚本与 zip。无 Key 时 `--fetch` 仅提示降级方案,绝不编造价格。
+- **原则**:真实密钥(第三方 API key)一律不落盘于可分发产物(zip/源码),避免泄露;本地便利文件(`.eia_key`)由用户自行保管。如怀疑泄露,立即到对应平台吊销并换新 key。

@@ -53,14 +53,14 @@ kingforex-skill/
 │   └── ta_reading.md
 ├── assets/                  # 输出模板（直接套用）
 │   ├── analysis_to_strategy_template.md
-│   ├── macro_dashboard_template.md
 │   ├── scenario_plan_template.md
 │   ├── trade_journal_template.md
 │   └── trade_plan_template.md
-└── scripts/                 # 9 个确定性脚本（纯 Python 标准库，零第三方依赖）
+└── scripts/                 # 10 个确定性脚本（纯 Python 标准库，零第三方依赖）
     ├── position_size.py     # ATR 止损 → 手数
     ├── exposure.py          # 组合净暴露 + 相关性集中度 + 压力测试
-    ├── kline_read.py        # K 线盘面解读引擎（MT4 CSV / 粘贴文本 → 文本/JSON/HTML）
+    ├── kline_read.py        # K 线盘面解读引擎（MT4 CSV / 粘贴文本 / 联网抓取 → 文本/JSON/HTML）
+    ├── kline_fetch.py       # K 线历史抓取：Twelve Data 权威源（15min/1H/4H/1D/1W，需免费 key）
     ├── bis_fetch.py         # BIS SDMX v2：央行政策利率、有效汇率（免 key）
     ├── eia_fetch.py         # EIA v2：原油/汽油/馏分油库存、WTI/Brent（需 key）
     ├── imf_fetch.py         # IMF SDMX 3.0：COFER 美元储备份额、IFS、WEO（免 key）
@@ -141,9 +141,27 @@ python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880
 2026-08-21,1.0880,1.0920,1.0860,1.0915" --symbol EURUSD --tf D1
 ```
 
-### 为什么用 MT4 导出 CSV 而不是实时接口
+支持 `--text` 直接粘贴 OHLC，无需文件：
 
-实测结论：**公开的免费 K 线接口基本不可用**（新浪旧接口下线、东财 push2his 被墙、Yahoo 403、stooq 返回 JS 挑战页）。因此引擎以 **MT4/MT5 导出的 CSV 为主输入**，零网络依赖、数据与你实盘完全一致。详见 `references/data_sources.md` 第 7.7 节。
+```bash
+python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880
+2026-08-21,1.0880,1.0920,1.0860,1.0915" --symbol EURUSD --tf D1
+```
+
+### 联网抓取 K 线（Twelve Data，可选）
+
+若你没有现成 CSV，可用 `--fetch` 让引擎**联网抓取** 15min / 1H / 4H / 1D / 1W 五周期并逐周期自动分析（需免费注册 [Twelve Data](https://twelvedata.com) 的 API Key）：
+
+```bash
+python scripts/kline_read.py --fetch --symbol USDJPY --api-key <TWELVEDATA_KEY>
+python scripts/kline_fetch.py --symbol XAUUSD --interval 1h --api-key <TWELVEDATA_KEY> --out ./output/xauusd_1h.csv
+```
+
+> **取数铁律**：任一周期抓取失败仅报告原因并跳过；全部失败则明确提示「无法从任何权威渠道获取 K 线数据」，引导改用本地 CSV/文本。**引擎绝不编造、估算或凭记忆生成任何价格**。详见 `references/data_sources.md` 第 7.7 节。
+
+### 为什么默认主输入仍是 MT4 导出 CSV
+
+实测结论：**中国大陆网络下多数公开免费 K 线接口不可用**（新浪旧接口下线、东财 push2his 被墙、Yahoo 403、stooq 返回 JS 挑战页）。MT4/MT5 导出的 CSV **零网络依赖、数据与你实盘完全一致**；Twelve Data 是少数可直连的权威补充源（需 key）。两种输入走同一套客观解读逻辑。详见 `references/data_sources.md` 第 7.7 节。
 
 ---
 
@@ -173,6 +191,11 @@ python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880
 
 详见 [CHANGELOG.md](CHANGELOG.md)。
 
+- **v1.2.0**（2026-09-03）：
+  - 新增 `scripts/kline_fetch.py` + `kline_read.py --fetch`：**联网抓取 K 线**（Twelve Data 权威源，15min/1H/4H/1D/1W 五周期，需免费 key），未发 K 线时自动取数；严守「不编造」铁律。
+  - `references/ta_reading.md` 补充 Murphy《金融市场技术分析》缺口：跳空/窗口、ADX/DMI 趋势强度、扇形线、斐波那契/回撤比例。
+  - 输出规范收敛为**双分支**：存在高确定性机会才出交易计划（9 行精确表格），否则直接判定 **【今日无交易】**，不强行每次给结论。
+  - 移除「数据看板」要求，跨市场信号直接汇入交易计划与盘面研判；同步清理 `macro_dashboard_template.md`。
 - **v1.1.0**（2026-09-03）：新增 `scripts/kline_read.py` K 线盘面解读引擎（Morris 量化形态评级）；
   `references/ta_reading.md` 重写为统计框架；新增 MT4 导出指引。
 - **v1.0.0**（2026-09-02）：初始发布，九大模块 + 8 个取数与计算脚本。

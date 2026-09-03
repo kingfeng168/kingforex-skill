@@ -6,8 +6,10 @@ kline_read.py — K 线盘面解读引擎 (kingforex-skill 模块九 · 盘面�
 定位:把"宏观对"落实为"现在能不能做、怎么做"的客观盘面事实。
   输入 MT4 / 通用 OHLCV CSV(或 --text 粘贴),输出结构化盘面解读:
     趋势(EMA 排列) · 市场结构(HH/HL/LH/LL) · ATR(14) · 关键支撑阻力
-    · 价格行为形态(pin bar / inside bar / 吞没 / 锤子 / 射击星) · 量价背离提示
+    · 价格行为形态(Morris《蜡烛图精解》量化库 + 经典日本蜡烛图补充集) · 量价背离提示
   输出:JSON(机器可读) + 文本解读(AI 可直接引用) + 可选 HTML 标注图。
+  盘面事实另涵盖:回归通道(上/中/下轨与突破状态) · MACD(DIF/DEA/柱/背离)
+    · RSI(14) · 布林带(20,±2σ) · 随机 %K/%D,均依 Murphy《金融市场技术分析》框架。
 
 设计约束:
   - 纯标准库,不联网(避开中国大陆被墙的免费 K 线源)。
@@ -232,6 +234,221 @@ def round_levels(price, n=5):
     # 仅保留靠近当前价的若干档
     out = [x for x in out if abs(x - price) <= step * 2.5]
     return sorted(out)[:6]
+
+
+# ---- 技术指标计算(Murphy《金融市场技术分析》框架) ----
+def sma(vals, n):
+    if n <= 0:
+        return []
+    out = []
+    for i in range(len(vals)):
+        if i + 1 < n:
+            out.append(None)
+        else:
+            out.append(sum(vals[i + 1 - n:i + 1]) / n)
+    return out
+
+
+def macd(closes, fast=12, slow=26, signal=9):
+    """返回 DIF/DEA/柱 三条序列(长度对齐 closes,前段为 None)。"""
+    if len(closes) < slow + signal:
+        return None
+    ef = ema(closes, fast)
+    es = ema(closes, slow)
+    dif = [ef[i] - es[i] for i in range(len(closes))]
+    dea = ema(dif, signal)
+    hist = [dif[i] - dea[i] for i in range(len(closes))]
+    return {"dif": dif, "dea": dea, "hist": hist}
+
+
+def macd_state(m, c):
+    """提炼 MACD 的最新状态:零轴位置、近期金叉/死叉、顶/底背离。"""
+    if not m:
+        return {}
+    dif, dea, hist = m["dif"], m["dea"], m["hist"]
+    last = len(dif) - 1
+    info = {
+        "dif": round(dif[last], 5),
+        "dea": round(dea[last], 5),
+        "hist": round(hist[last], 5),
+        "zero": "零轴上方" if dif[last] > 0 else "零轴下方",
+        "cross": "—",
+        "divergence": "",
+    }
+    for i in range(max(1, last - 3), last + 1):
+        if dif[i - 1] <= dea[i - 1] and dif[i] > dea[i]:
+            info["cross"] = "金叉(近期)"; break
+        if dif[i - 1] >= dea[i - 1] and dif[i] < dea[i]:
+            info["cross"] = "死叉(近期)"; break
+    win = min(20, len(c))
+    seg_c, seg_d = c[-win:], dif[-win:]
+    i_h, i_l = seg_c.index(max(seg_c)), seg_c.index(min(seg_c))
+    if i_h >= win - 5 and seg_d[i_h] < max(seg_d):
+        info["divergence"] = "价格新高但 MACD 未新高→顶背离预警"
+    elif i_l >= win - 5 and seg_d[i_l] > min(seg_d):
+        info["divergence"] = "价格新低但 MACD 未新低→底背离预警"
+    return info
+
+
+def rsi(closes, n=14):
+    """Wilder RSI(14),返回长度对齐 closes,前段为 None。"""
+    if len(closes) < n + 1:
+        return None
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        ch = closes[i] - closes[i - 1]
+        gains.append(max(ch, 0.0)); losses.append(max(-ch, 0.0))
+    out = [None] * n
+    ag, al = sum(gains[:n]) / n, sum(losses[:n]) / n
+    rs = ag / al if al else float("inf")
+    out.append(100 - 100 / (1 + rs))
+    for i in range(n, len(gains)):
+        ag = (ag * (n - 1) + gains[i]) / n
+        al = (al * (n - 1) + losses[i]) / n
+        rs = ag / al if al else float("inf")
+        out.append(100 - 100 / (1 + rs))
+    # 补齐到 closes 长度(前面 n 个已 None,需与索引对齐:closes[0..n-1] 无 RSI)
+    return out
+
+
+def bollinger(closes, n=20, k=2):
+    """返回 (mid, upper, lower) 序列,前段为 (None,None,None)。"""
+    if len(closes) < n:
+        return None
+    out = []
+    for i in range(len(closes)):
+        if i + 1 < n:
+            out.append((None, None, None))
+        else:
+            w = closes[i + 1 - n:i + 1]
+            mid = sum(w) / n
+            sd = math.sqrt(sum((x - mid) ** 2 for x in w) / n)
+            out.append((mid, mid + k * sd, mid - k * sd))
+    return out
+
+
+def stochastic(highs, lows, closes, n=14, d_n=3):
+    """返回 %K / %D 序列(长度对齐,前段 None)。"""
+    if len(closes) < n:
+        return None
+    k = []
+    for i in range(len(closes)):
+        if i + 1 < n:
+            k.append(None)
+        else:
+            hh, ll = max(highs[i + 1 - n:i + 1]), min(lows[i + 1 - n:i + 1])
+            k.append(50.0 if hh == ll else (closes[i] - ll) / (hh - ll) * 100)
+    d = []
+    for i in range(len(k)):
+        w = [x for x in k[max(0, i + 1 - d_n):i + 1] if x is not None]
+        d.append(sum(w) / len(w) if w else None)
+    return {"k": k, "d": d}
+
+
+def detect_channel(bars, n=60, k=2.0):
+    """线性回归通道:中线=回归线,上下轨=中线 ± k*残差标准差;标注突破状态。"""
+    if len(bars) < 10:
+        return None
+    if len(bars) < n:
+        n = len(bars)
+    seg = bars[-n:]
+    xs = list(range(len(seg)))
+    ys = [b["c"] for b in seg]
+    m_ = len(xs)
+    mx, my = sum(xs) / m_, sum(ys) / m_
+    sxx = sum((x - mx) ** 2 for x in xs)
+    sxy = sum((xs[i] - mx) * (ys[i] - my) for i in range(m_))
+    slope = 0.0 if sxx == 0 else sxy / sxx
+    intercept = my - slope * mx
+    resid = [ys[i] - (intercept + slope * xs[i]) for i in range(m_)]
+    sd = math.sqrt(sum(r * r for r in resid) / m_) if m_ > 1 else 0.0
+    last_x = m_ - 1
+    mid = intercept + slope * last_x
+    upper, lower = mid + k * sd, mid - k * sd
+    last_c = ys[-1]
+    if last_c > upper:
+        state = "突破上轨(顺势加速/警惕假突破)"
+    elif last_c < lower:
+        state = "跌破下轨(转弱/警惕假突破)"
+    else:
+        state = "通道内运行"
+    return {"slope": round(slope, 5), "mid": round(mid, 5),
+            "upper": round(upper, 5), "lower": round(lower, 5),
+            "sd": round(sd, 5), "state": state, "k": k, "n": m_}
+
+
+def detect_gap(bars, n=5):
+    """识别最近 n 根内的跳空(窗口):方向、幅度、是否回补。Murphy 第 2、11 章。
+
+    向上跳空: 今开 > 昨高; 向下跳空: 今开 < 昨低。窗口关闭(回补) = 后续价格回到缺口内。
+    """
+    if len(bars) < 2:
+        return None
+    seg = bars[-n:] if len(bars) >= n else bars
+    for i in range(len(seg) - 1, 0, -1):
+        cur, prev = seg[i], seg[i - 1]
+        if cur["o"] > prev["h"]:
+            gap = cur["o"] - prev["h"]
+            filled = any(b["l"] <= prev["h"] for b in seg[i + 1:])
+            return {"dir": "up", "size": round(gap, 5), "filled": filled,
+                    "note": "向上跳空;未回补=突破/中继动能,回补=普通或衰竭"}
+        if cur["o"] < prev["l"]:
+            gap = prev["l"] - cur["o"]
+            filled = any(b["h"] >= prev["l"] for b in seg[i + 1:])
+            return {"dir": "down", "size": round(gap, 5), "filled": filled,
+                    "note": "向下跳空;未回补=突破/中继动能,回补=普通或衰竭"}
+    return None
+
+
+# ---- 经典日本蜡烛图形态(Murphy 第2章,补充 Morris 量化库) ----
+def detect_classic(bars, ctx, n=8):
+    """识别十字星/纺锤/marubozu/刺透/乌云盖顶/启明星/黄昏星/红三兵/黑三鸦。
+    与 Morris 库共享前提:先定趋势背景(ctx),再判形态含义。"""
+    res = []
+    lo = max(3, len(bars) - n)
+    for i in range(lo, len(bars)):
+        b = bars[i]
+        rng = b["h"] - b["l"]
+        if rng <= 0:
+            continue
+        body = abs(b["c"] - b["o"])
+        up_sh = b["h"] - max(b["o"], b["c"])
+        dn_sh = min(b["o"], b["c"]) - b["l"]
+        bull = b["c"] > b["o"]
+        br = body / rng
+        if br < 0.1:
+            res.append((i, "十字星", "多空平衡/转折(趋势末端留意)", b["c"], 0)); continue
+        if up_sh < 0.05 * rng and dn_sh < 0.05 * rng:
+            res.append((i, "光头光脚" + ("阳线" if bull else "阴线"),
+                        "强趋势驱动(顺势突破力度高)", b["c"], 1 if bull else -1)); continue
+        if br < 0.35 and up_sh > 0.2 * rng and dn_sh > 0.2 * rng:
+            res.append((i, "纺锤线", "动能衰减/犹豫(转折前兆)", b["c"], 0)); continue
+        if i >= 2:
+            p1 = bars[i - 1]
+            p1b = abs(p1["c"] - p1["o"]) / max(p1["h"] - p1["l"], 1e-9)
+            if (not p1["c"] > p1["o"]) and bull and b["o"] < p1["c"] and \
+               b["c"] > (p1["o"] + p1["c"]) / 2 and ctx == "down":
+                res.append((i, "刺透线", "看涨反转(需确认,弱于吞没)", b["c"], 1))
+            if (p1["c"] > p1["o"]) and (not bull) and b["o"] > p1["c"] and \
+               b["c"] < (p1["o"] + p1["c"]) / 2 and ctx == "up":
+                res.append((i, "乌云盖顶", "看跌反转(需确认,弱于吞没)", b["c"], -1))
+            if i >= 3:
+                p3 = bars[i - 3]
+                if (p3["c"] < p3["o"]) and p1b < 0.3 and bull and \
+                   b["c"] > (p3["o"] + p3["c"]) / 2 and ctx == "down":
+                    res.append((i, "启明星", "看涨反转(经典底部三星)", b["c"], 1))
+                if (p3["c"] > p3["o"]) and p1b < 0.3 and (not bull) and \
+                   b["c"] < (p3["o"] + p3["c"]) / 2 and ctx == "up":
+                    res.append((i, "黄昏星", "看跌反转(经典顶部三星)", b["c"], -1))
+        if i >= 3:
+            a, b1, c1, d1 = bars[i - 3], bars[i - 2], bars[i - 1], b
+            if all(x["c"] > x["o"] for x in (b1, c1, d1)) and b1["c"] > a["c"] and \
+               c1["c"] > b1["c"] and d1["c"] > c1["c"]:
+                res.append((i, "红三兵", "看涨驱动(底部/上升初,高位警惕透支)", b["c"], 1))
+            if all(x["c"] < x["o"] for x in (b1, c1, d1)) and b1["c"] < a["c"] and \
+               c1["c"] < b1["c"] and d1["c"] < c1["c"]:
+                res.append((i, "黑三鸦", "看跌驱动", b["c"], -1))
+    return res
 
 
 # ---- Morris《蜡烛图精解》形态统计库 ----
@@ -493,6 +710,19 @@ def analyze(bars, symbol="", tf="", lookback=120):
     horizon_note = "形态预测力随持有期衰减:" + "; ".join(
         "%d日 持续%d%%/反转%d%%" % (d, s, r) for d, s, r, _c in HORIZON_TABLE)
 
+    # ---- 技术指标(Murphy《金融市场技术分析》框架) ----
+    m_data = macd(c)
+    m_state = macd_state(m_data, c)
+    r_data = rsi(c, 14)
+    b_data = bollinger(c, 20, 2)
+    s_data = stochastic(h, l, c, 14, 3)
+    chan = detect_channel(bars, min(60, len(bars)))
+    classics = detect_classic(bars, trend_ctx, 8)
+    gap = detect_gap(bars, min(20, len(bars)))
+    rsi14 = r_data[-1] if r_data else None
+    boll_last = b_data[-1] if b_data else (None, None, None)
+    stoch_last = (s_data["k"][-1], s_data["d"][-1]) if s_data else (None, None)
+
     # 量价背离(修正:在末段窗口内定位极值索引,避免 c.index 在全表误匹配)
     divergence = ""
     win = min(20, len(c))
@@ -525,6 +755,17 @@ def analyze(bars, symbol="", tf="", lookback=120):
         "pattern_note": pat_note,
         "horizon_note": horizon_note,
         "divergence": divergence,
+        "macd": m_state,
+        "rsi14": round(rsi14, 2) if rsi14 is not None else None,
+        "boll": {"mid": round(boll_last[0], 5) if boll_last[0] else None,
+                 "upper": round(boll_last[1], 5) if boll_last[1] else None,
+                 "lower": round(boll_last[2], 5) if boll_last[2] else None},
+        "stoch": {"k": round(stoch_last[0], 2) if stoch_last[0] is not None else None,
+                  "d": round(stoch_last[1], 2) if stoch_last[1] is not None else None},
+        "channel": chan,
+        "gap": gap,
+        "classic_patterns": [{"idx": i, "name": nm, "bias": bz, "price": round(pr, 5), "dir": d}
+                             for i, nm, bz, pr, d in classics],
         "last_bar": {"t": last["t"], "o": last["o"], "h": last["h"], "l": last["l"], "c": last["c"], "v": last["v"]},
     }
     return report
@@ -561,6 +802,45 @@ def to_text(r):
         lines.append(f"   >> 综合: {r.get('pattern_note','')}")
     if r["divergence"]:
         lines.append(f"8) 量价提示: {r['divergence']}")
+
+    # 9) 通道(回归通道)
+    ch = r.get("channel")
+    if ch:
+        lines.append(f"9) 回归通道: 上轨 {ch['upper']} / 中轨 {ch['mid']} / 下轨 {ch['lower']}"
+                     f" (斜率 {ch['slope']}, ±{ch['k']}σ) → {ch['state']}")
+
+    # 9b) 跳空/窗口
+    gp = r.get("gap")
+    if gp:
+        filled_txt = "已回补(普通/衰竭)" if gp["filled"] else "未回补(突破/中继动能)"
+        lines.append(f"9b) 跳空/窗口: {gp['dir']} 幅度 {gp['size']} | {filled_txt} — {gp['note']}")
+
+    # 10) 技术指标(Murphy 框架)
+    lines.append("10) 技术指标:")
+    m = r.get("macd") or {}
+    if m:
+        lines.append(f"    · MACD: DIF={m.get('dif')} DEA={m.get('dea')} 柱={m.get('hist')}"
+                     f" [{m.get('zero')} · {m.get('cross')}]"
+                     + (f" | {m['divergence']}" if m.get("divergence") else ""))
+    rs = r.get("rsi14")
+    if rs is not None:
+        ob = " (超买≥70)" if rs >= 70 else (" (超卖≤30)" if rs <= 30 else "")
+        lines.append(f"    · RSI(14)={rs}{ob}")
+    bl = r.get("boll") or {}
+    if bl.get("mid") is not None:
+        lines.append(f"    · 布林: 中轨 {bl['mid']} / 上轨 {bl['upper']} / 下轨 {bl['lower']}")
+    st = r.get("stoch") or {}
+    if st.get("k") is not None:
+        lines.append(f"    · 随机: %K={st['k']} %D={st['d']}"
+                     + (" (超买≥80)" if st["k"] >= 80 else (" (超卖≤20)" if st["k"] <= 20 else "")))
+
+    # 11) 经典蜡烛图形态(Murphy,补充 Morris 量化库)
+    cps = r.get("classic_patterns") or []
+    if cps:
+        lines.append("11) 经典蜡烛图形态(补充识别集):")
+        for p in cps[-8:]:
+            dmap = {1: "看涨", -1: "看跌", 0: "中性"}
+            lines.append(f"   · 第{p['idx']}根 【{p['name']}】{dmap.get(p['dir'], '—')} — {p['bias']} (参考价 {p['price']})")
     lines.append("─" * 40)
     lines.append("判定纪律: 以上为客观盘面事实。方向须顺宏观研判与跨市场印证;")
     lines.append("          反转形态单独使用统计期望多为负,须等确认 + 关键位共振再动手。")
@@ -581,6 +861,14 @@ def to_html(r, bars, symbol, tf):
         marks.append({"yAxis": lv, "label": {"formatter": f"支 {lv}", "color": "#52c41a"}, "lineStyle": {"color": "#52c41a"}})
     for lv in r["round_levels"]:
         marks.append({"yAxis": lv, "label": {"formatter": f"{lv}", "color": "#888"}, "lineStyle": {"color": "#555", "type": "dashed"}})
+    ch = r.get("channel")
+    if ch:
+        marks.append({"yAxis": ch["upper"], "label": {"formatter": f"通道上轨 {ch['upper']}", "color": "#ffa940"},
+                      "lineStyle": {"color": "#ffa940"}})
+        marks.append({"yAxis": ch["mid"], "label": {"formatter": f"通道中轨 {ch['mid']}", "color": "#7df9ff"},
+                      "lineStyle": {"color": "#7df9ff", "type": "dashed"}})
+        marks.append({"yAxis": ch["lower"], "label": {"formatter": f"通道下轨 {ch['lower']}", "color": "#36cfc9"},
+                      "lineStyle": {"color": "#36cfc9"}})
     html = """<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <title>K线盘面解读 %s %s</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -613,18 +901,74 @@ chart.setOption({backgroundColor:'#0b0e14',
 
 
 # ----------------------------- 入口 -----------------------------
+def run_fetch(args):
+    """--fetch 模式:从权威渠道(Twelve Data)抓取 15min/1H/4H/1D/1W 并逐周期分析。
+
+    铁律:任何周期抓取失败只报告原因并跳过;全部失败则明确告知"无法获取权威K线数据",
+    绝不编造价格。无 Key / 网络受限时引导用户改用 --csv / --text。
+    """
+    try:
+        import kline_fetch as kf
+    except ImportError:
+        print("✗ 未能加载 kline_fetch 模块(请确认与 kline_read.py 同目录)")
+        return
+
+    apikey = args.api_key or os.environ.get("TWELVEDATA_API_KEY", "")
+    if not apikey:
+        print("✗ 未配置 Twelve Data API Key(环境变量 TWELVEDATA_API_KEY 或 --api-key)。")
+        print("  免费注册 https://twelvedata.com 获取;无 Key 时本环境无法联网获取 K 线。")
+        print("  替代方案:由 MT4 导出 CSV 用 --csv,或直接在对话粘贴 OHLC 用 --text。")
+        return
+
+    if not args.symbol:
+        print("✗ --fetch 需要 --symbol(如 --symbol USDJPY)")
+        return
+
+    print(f"⏳ 从 Twelve Data 获取 {args.symbol} 的 15min/1H/4H/1D/1W ...")
+    results = kf.fetch_multi(args.symbol, kf.STD_INTERVALS, apikey, output_size=200)
+    any_ok = False
+    for label, (bars, err) in results.items():
+        if bars is None:
+            print(f"  · {label}: ✗ 获取失败({err})")
+            continue
+        any_ok = True
+        print(f"  · {label}: ✓ {len(bars)} 根")
+        rep = analyze(bars, args.symbol, label, args.last)
+        if not args.no_text:
+            print("─" * 50)
+            print(to_text(rep))
+        if args.json:
+            os.makedirs(args.out, exist_ok=True)
+            jp = os.path.join(args.out, f"kline_read_{args.symbol}_{label}.json")
+            with open(jp, "w", encoding="utf-8") as f:
+                json.dump(rep, f, ensure_ascii=False, indent=2)
+            print(f"[JSON] -> {jp}")
+
+    if not any_ok:
+        print("\n⚠️ 无法从任何权威渠道获取 K 线数据(网络受限 / 品种不支持 / Key 无效)。")
+        print("   严禁自行编造或估算任何价格。请贴出 MT4 导出的 CSV(--csv)或 OHLC 文本(--text)。")
+
+
 def main():
     ap = argparse.ArgumentParser(description="K线盘面解读引擎")
     ap.add_argument("--csv", help="MT4/通用 OHLCV CSV 路径")
     ap.add_argument("--text", help="粘贴 OHLC 文本(每行 date,o,h,l,c[,v])")
-    ap.add_argument("--symbol", default="", help="品种名(仅标注)")
-    ap.add_argument("--tf", default="", help="周期(仅标注)")
+    ap.add_argument("--symbol", default="", help="品种名(分析及 --fetch 抓取均需)")
+    ap.add_argument("--tf", default="", help="周期(仅标注 / 分析目标)")
     ap.add_argument("--last", type=int, default=120, help="仅分析最近 N 根(默认120)")
     ap.add_argument("--out", default=DEFAULT_OUT, help="输出目录")
     ap.add_argument("--json", action="store_true", help="输出 JSON 文件")
     ap.add_argument("--html", action="store_true", help="输出 HTML 标注图")
     ap.add_argument("--no-text", action="store_true", help="不打印文本解读")
+    ap.add_argument("--fetch", action="store_true",
+                    help="联网抓取 K 线(需 --symbol;默认取 15min/1H/4H/1D/1W,经 Twelve Data)")
+    ap.add_argument("--api-key", default=os.environ.get("TWELVEDATA_API_KEY", ""),
+                    help="Twelve Data API Key(或环境变量 TWELVEDATA_API_KEY)")
     args = ap.parse_args()
+
+    if args.fetch:
+        run_fetch(args)
+        return
 
     if args.csv:
         bars = parse_csv(args.csv)

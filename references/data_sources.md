@@ -64,7 +64,7 @@
 
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
-| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(需自备 key,见第 7.2 节);详见第 7.2 节 |
+| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 已配置于 `scripts/.eia_key`);详见第 7.2 节 |
 | **IEA** `iea.org` | 国际组织一手 | 月度石油市场报告(MOMR 同类)、全球需求预测、库存 | 月 | 网页 / 报告 |
 | **OPEC** `opec.org` | 官方一手 | 月度石油市场报告、产量配额、执行率、闲置产能 | 月 | 网页 / 报告 |
 | **API**(美国石油协会) | 行业一手 | 周度库存补充(公布早于 EIA) | 周二 | 网页 |
@@ -77,7 +77,7 @@
 | 数据源 | 权威性 | 关键内容 | 获取方式 |
 |--------|--------|----------|----------|
 | **TradingView** `tradingview.com` | 市场基准 | 跨市场图表模板、VIX、信用利差(ICE/BofA)、AUD/JPY、USD/CAD、USD/CNH | 网页 / 模板 |
-| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观仪表盘输入源,**避免重复采集** | 读取 `./output\financial-dashboard\daily_data.json` |
+| **本地宏观日报系统(可选)** | 自用 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `./daily_data.json` |
 | **中国信贷脉冲** | 一手派生 | 社融增量 / GDP(PBOC),领先铜、澳元、人民币 3–6 个月 | PBOC 网页 / CEIC / Wind |
 
 ---
@@ -96,7 +96,7 @@
 
 ## 7. 获取方式与工具（含本技能内置脚本）
 
-本技能在 `scripts/` 随包提供六个**标准库实现、无需 pip 安装**的取数脚本,直接拉取权威源、输出 CSV,供仪表盘与研判复用:
+本技能在 `scripts/` 随包提供六个**标准库实现、无需 pip 安装**的取数脚本,直接拉取权威源、输出 CSV,供研判与交易计划复用:
 
 ### 7.1 BIS 官方统计 API（SDMX v2,无需 key）
 
@@ -114,10 +114,10 @@ python scripts/bis_fetch.py --list          # 列出全部数据集
 python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 ```
 
-### 7.2 EIA v2 API（原油模块,需自备 key）
+### 7.2 EIA v2 API（原油模块,已配置 key）
 
 - **Base**:`https://api.eia.gov/v2`,免费 key 注册 https://www.eia.gov/opendata/。
-- **Key 配置**:读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > 脚本同目录 `.eia_key`(单行纯文本)。**密钥不得硬编码进脚本源码**,`.eia_key` 已在 `.gitignore` 中排除,不会随仓库分发。
+- **Key 已配置**:key 已写入 `scripts/.eia_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装 skill 后需重设(见 SKILL.md 末尾"密钥安全")。
 - **权威价值**:周度原油/汽油/馏分油库存、WTI/Brent 现货价——原油模块(模块四)的核心一手源,直接驱动 EIA 周三库存事件交易研判。
 - **常用路由/系列(2026-08 实测校准)**:
   - `petroleum/sum/sndw`(周度供需,**强制需要 `frequency=weekly`**):原油库存 `WCRSTUS1`、汽油总库存 `WGTSTUS1`、馏分油库存 `WDISTUS1`(单位均为千桶)。
@@ -126,7 +126,7 @@ python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 - **脚本**:`scripts/eia_fetch.py`(标准库;预设 `crude_stocks/gas_stocks/dist_stocks/wti/brent`;`--last N` 自动按 period 倒序取最近 N 期,规避 EIA 5000 行分页截断)。
 
 ```bash
-# 美国商业原油库存最近 12 周(配置好 key 后无需每次传入,或显式 --api-key YOURKEY)
+# 美国商业原油库存最近 12 周(无需再传 key,自动读 .eia_key)
 python scripts/eia_fetch.py --preset crude_stocks --last 12 --out "./output/eia_crude_stocks.csv"
 # 汽油总库存 / 馏分油库存 / WTI / Brent
 python scripts/eia_fetch.py --preset gas_stocks --last 12
@@ -219,12 +219,18 @@ python scripts/live_market_fetch.py --preset all --json
 
 ### 7.7 K 线历史数据(盘面解读的输入)
 
-**本环境实测结论(2026-08/09 中国大陆网络):免费 K 线历史源基本不可用**,故 `scripts/kline_read.py` 以 **MT4 导出 CSV** 为主输入(零网络依赖、与手动交易习惯一致)。
+**本环境实测结论(2026-08/09 中国大陆网络):多数免费 K 线历史源不可用**,故盘面解读的输入遵循"**双路径、取数铁律**":
+
+- **路径①(零网络依赖,推荐)**:用户从 MT4 导出 CSV 或粘贴 OHLC 文本,由 `scripts/kline_read.py` 本地确定性计算——与手工交易习惯一致、最可靠。
+- **路径②(联网权威抓取,需免费 Key)**:当用户**未发送任何 K 线数据**时,用 `kline_read.py --fetch` 经 **Twelve Data** 联网抓取 15min/1H/4H/1D/1W 五周期——**Twelve Data 是中国大陆可直连、免翻墙的权威 OHLC 历史源**(2026-09 实测 HTTP 200,覆盖外汇/黄金/原油)。
+
+> **取数铁律(与技能整体一致,不可逾越)**:任一周期抓取失败(Key 缺失 / 网络受限 / 品种不支持 / 返回空),**仅报告原因并跳过该周期**;五周期全部失败则明确告知"无法从任何权威渠道获取 K 线数据",并引导改用 `--csv`/`--text`,**严禁自行编造、估算或凭记忆生成任何价格**。
 
 | 源 | 状态 | 说明 |
 |---|---|---|
-| **MT4 导出 CSV** | ✅ **推荐主输入** | 文件→另存为,或"数据窗口"右键导出;脚本自动识别 `Date,Time,O,H,L,C,V` 表头与制表符/逗号分隔 |
-| 粘贴 OHLC 文本 | ✅ 支持 | `--text "date,o,h,l,c"` 多行,临时快速解读 |
+| **MT4 导出 CSV** | ✅ **推荐主输入(路径①)** | 文件→另存为,或"数据窗口"右键导出;脚本自动识别 `Date,Time,O,H,L,C,V` 表头与制表符/逗号分隔 |
+| 粘贴 OHLC 文本 | ✅ 支持(路径①) | `--text "date,o,h,l,c"` 多行,临时快速解读 |
+| **Twelve Data** `api.twelvedata.com` | ✅ **权威网络源(路径②)** | 中国大陆可直连,免费注册 https://twelvedata.com 取 Key;覆盖外汇/黄金/原油与 15min/1h/4h/1day/1week;经 `kline_fetch.py` 抓取,`kline_read.py --fetch` 逐周期分析 |
 | 新浪旧接口 `CN_FX_Data` / `CN_MarketDataService` | ❌ 失效 | 接口已下线 |
 | 东方财富 `push2his` | ❌ 被墙/超时 | 本环境不可达 |
 | Yahoo `query1.finance.yahoo.com` | ❌ HTTP 403 | 需 OAuth,已关闭匿名访问 |
@@ -233,15 +239,23 @@ python scripts/live_market_fetch.py --preset all --json
 **MT4 导出步骤**:图表右键 →「数据窗口」→ 右键 →「导出」→ 存为 `.csv`(默认制表符分隔,脚本兼容)。
 若只需最近 N 根,用 `--last N` 控制,默认值 120。
 
-**脚本**:`scripts/kline_read.py`(纯标准库,无需 key)
+**脚本**:`scripts/kline_read.py`(纯标准库,无需 key) + `scripts/kline_fetch.py`(Twelve Data 抓取,需免费 Key)
 
 ```bash
-# CSV 输入 + 输出 JSON/HTML 标注图
+# 路径①:CSV 输入 + 输出 JSON/HTML 标注图
 python scripts/kline_read.py --csv "./output/EURUSD_H1.csv" \
     --symbol EURUSD --tf H1 --last 120 --json --html --out "./output"
-# 粘贴文本快速解读
+# 路径①:粘贴文本快速解读
 python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880" --symbol EURUSD --tf D1
+
+# 路径②:未发K线时,联网抓取 15min/1H/4H/1D/1W 并逐周期分析(Twelve Data 权威源)
+python scripts/kline_read.py --fetch --symbol USDJPY --api-key <TWELVEDATA_KEY>
+python scripts/kline_read.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --json --out "./output"
+# 单源单周期抓取(可输出 CSV)
+python scripts/kline_fetch.py --symbol USOIL --interval 1h --api-key <TWELVEDATA_KEY> --out "./output/usoil_1h.csv"
 ```
+
+> **无 Key 降级提示**:若未配置 Twelve Data Key(环境变量 `TWELVEDATA_API_KEY` 或 `--api-key`),`--fetch` 会明确提示"未配置 Key,无法联网获取 K 线",并给出 --csv / --text 替代方案,**绝不编造价格**。Key 由用户自行在 twelvedata.com 免费注册,**不硬编码进脚本与 zip**。
 
 ---
 
@@ -249,8 +263,8 @@ python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880" --s
 
 - **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key,支持序列历史拉取(可用 `curl` 或 Python `requests`)。
 - **WebFetch**:本环境可直接对官方/聚合页面做结构化抓取(用于无 API 的源,如 WGC、OPEC 报告要点)。
-- **用户日报系统**:读取 `./output\financial-dashboard\daily_data.json`,作为仪表盘与滚动相关性的本地数据源。
-- **Python / Excel**:对取回数据自动更新仪表盘与 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
+- **本地日报系统(可选)**:读取 `./daily_data.json`,作为滚动相关性分析的本地数据源。
+- **Python / Excel**:对取回数据自动更新 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
 
 ---
 

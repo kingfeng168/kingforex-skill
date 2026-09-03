@@ -2,6 +2,27 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] — 2026-09-03
+
+### 新增
+
+- **`scripts/kline_fetch.py`**（157 行，纯标准库）：从 **Twelve Data** 权威抓取 K 线历史（中国大陆可直连、免翻墙），覆盖外汇/黄金/原油与 `15min / 1h / 4h / 1day / 1week` 五周期。
+- **`scripts/kline_read.py --fetch` 模式**：用户未发送 K 线时自动联网抓取五周期并逐周期分析；API Key 缺失 / 网络受限 / 品种不支持仅报告原因并跳过，全部失败明确提示「无法获取权威 K 线数据」并引导改用本地 CSV/文本，**严禁编造价格**。
+- `references/ta_reading.md`：补充 Murphy《金融市场技术分析》三个缺口——§2.8 跳空与窗口（普通/突破/中继/衰竭 + 4 条通用规则）；`scripts/kline_read.py` 新增 `detect_gap()` 识别最近跳空方向/幅度/是否回补。
+- `references/indicators.md`：§9 ADX/DMI（趋势强度四档读法 + 纪律）、§10 补充指标（OBV/CCI/Parabolic SAR）。
+- `references/channels.md`：§5 扇形线（1/3·2/3·3/3 回撤射线）、§6 回撤比例与斐波（33/50/66% + 0.382/0.5/0.618）。
+
+### 变更
+
+- **输出规范收敛为双分支**：存在高确定性机会（宏观/跨市场/盘面三维印证共振 + 风险可控）才出交易计划（精确 9 行表格）；否则直接判定 **【今日无交易】**，不强行每次给交易结论。
+- **移除数据看板要求**：本技能聚焦分析与交易策略制定，跨市场信号直接汇入交易计划与盘面研判；删除 `assets/macro_dashboard_template.md`，相关文档措辞同步清理。
+- `SKILL.md`：description 增补触发词（跳空/窗口、ADX、扇形线、斐波回撤、头肩/双顶底/三角/旗形/楔形）；脚本清单、调用示例、数据源集成「K 线历史」条、密钥安全（Twelve Data key 不入 zip）同步更新。
+- `references/data_sources.md` §7.7：由「免费 K 线基本不可用」改写为「双路径 + 取数铁律」（MT4 CSV 主输入 + Twelve Data 权威联网抓取），附降级提示。
+
+### 修复
+
+- 无（相对 1.1.0 的功能增量，上一版 `--text` 6 列解析问题已在 1.1.0 修复）。
+
 ## [1.1.0] — 2026-09-03
 
 ### 新增
