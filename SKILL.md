@@ -198,6 +198,7 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 `python scripts/kline_read.py --csv "./output/EURUSD_H1.csv" --symbol EURUSD --tf H1 --last 120 --json --html --out "./output"`
 `python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880
 2026-08-21,1.0880,1.0920,1.0860,1.0915" --symbol EURUSD --tf D1 --last 60`
+`# --text 分隔符可为 逗号/分号/制表符/空格,列数自适应:date,o,h,l,c[,v] 或 date,time,o,h,l,c[,v] 均可,可直接粘 MT4 剪贴板`
 
 ## 工具与数据源集成(权威渠道)
 

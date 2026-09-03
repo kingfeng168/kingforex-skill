@@ -19,7 +19,8 @@ kline_read.py — K 线盘面解读引擎 (kingforex-skill 模块九 · 盘面�
   python kline_read.py --csv "D:/MT4/EURUSD_H1.csv" --symbol EURUSD --tf H1 --last 120 \
       --out "./output/" --html
 
-  # 直接粘贴 OHLC(每行 date,o,h,l,c)
+  # 直接粘贴 OHLC。分隔符 逗号/分号/制表符/空格 均可,列数自适应:
+  #   date,o,h,l,c[,v] / date,time,o,h,l,c[,v] / 纯 o,h,l,c 都支持,可直接粘 MT4 剪贴板
   python kline_read.py --text "2026-08-01,1.0800,1.0820,1.0790,1.0810
 2026-08-02,1.0810,1.0835,1.0805,1.0828" --symbol XAUUSD --tf D1
 
@@ -31,12 +32,17 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 
 DEFAULT_OUT = os.environ.get("KINGFOREX_OUT", "./output")
 
 
 # ----------------------------- 解析层 -----------------------------
+# 严格数字:仅 1.0800 / -1.5 / .5 / 12,不把 "2026-08-01"、"10:00" 算作数字
+NUM_RE = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
+
+
 def _is_num(s):
     s = s.strip().replace(",", "").replace("-", "")
     if s.startswith(".") or s.endswith("."):
@@ -119,22 +125,35 @@ def parse_csv(path):
 
 
 def parse_text(text):
-    """解析 --text 粘贴的 OHLC,每行 date,o,h,l,c[,v]"""
+    """解析 --text 粘贴的 OHLC,自动兼容多种粘贴格式。
+
+    分隔符可为 逗号 / 分号 / 制表符 / 空格,可混用;列可多可少:
+        date,o,h,l,c[,v]                 文档示例
+        date,time,o,h,l,c[,v]            MT4 复制到剪贴板的常见格式
+        date<TAB>time<TAB>o h l c v      MT4 制表符导出
+        o,h,l,c[,v]                      无时间戳的纯 OHLC
+    规则:第一个可解析为数字的列之前的所有列,合并成时间标签。
+    """
     bars = []
     for ln in text.strip().splitlines():
         ln = ln.strip()
         if not ln:
             continue
-        parts = [p.strip() for p in ln.replace(";", ",").split(",")]
-        if len(parts) < 5:
+        parts = [p for p in re.split(r"[,;\t ]+", ln) if p]
+        if len(parts) < 4:
             continue
-        try:
-            date = parts[0]
-            o, h, l, c = (float(x.replace(",", "")) for x in parts[1:5])
-            v = float(parts[5].replace(",", "")) if len(parts) > 5 else 0.0
-        except Exception:
-            continue
-        bars.append({"t": date, "o": o, "h": h, "l": l, "c": c, "v": v})
+        # 严格数字匹配(不能用 _is_num:它会把 "2026-08-01" 判成数字)
+        idxs = [i for i, p in enumerate(parts) if NUM_RE.match(p)]
+        if len(idxs) < 4:
+            continue  # 表头行或日期-only 行
+        first = idxs[0]
+        label = " ".join(parts[:first]) if first > 0 else str(len(bars) + 1)
+        nums = [float(parts[i]) for i in idxs]
+        o, h, l, c = nums[0], nums[1], nums[2], nums[3]
+        v = nums[4] if len(nums) > 4 else 0.0
+        if h < max(o, c) or l > min(o, c):
+            continue  # 非法 HL 关系
+        bars.append({"t": label, "o": o, "h": h, "l": l, "c": c, "v": v})
     return bars
 
 
