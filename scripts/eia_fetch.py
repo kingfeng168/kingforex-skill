@@ -48,7 +48,7 @@ PRESETS = {
 
 
 def _read_local_key():
-    """从脚本同目录的 .eia_key 文件读取 key(本地便利，不进 zip/不进脚本)。"""
+    """从脚本同目录的 .eia_key 文件读取 key(本地便利，不硬编码进源码)。"""
     p = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".eia_key")
     try:
         with open(p, "r", encoding="utf-8") as f:

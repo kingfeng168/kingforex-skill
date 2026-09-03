@@ -1,0 +1,641 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+kline_read.py — K 线盘面解读引擎 (kingforex-skill 模块九 · 盘面分析)
+
+定位:把"宏观对"落实为"现在能不能做、怎么做"的客观盘面事实。
+  输入 MT4 / 通用 OHLCV CSV(或 --text 粘贴),输出结构化盘面解读:
+    趋势(EMA 排列) · 市场结构(HH/HL/LH/LL) · ATR(14) · 关键支撑阻力
+    · 价格行为形态(pin bar / inside bar / 吞没 / 锤子 / 射击星) · 量价背离提示
+  输出:JSON(机器可读) + 文本解读(AI 可直接引用) + 可选 HTML 标注图。
+
+设计约束:
+  - 纯标准库,不联网(避开中国大陆被墙的免费 K 线源)。
+  - 取数依赖用户在 MT4 导出历史 CSV(或粘贴 OHLC),脚本只做确定性计算。
+  - 形态/结构判定为"客观信号",不含任何主观方向建议;方向必须顺宏观与跨市场印证。
+
+用法:
+  # 解读 MT4 导出的 EURUSD H1 CSV(最近 120 根)
+  python kline_read.py --csv "D:/MT4/EURUSD_H1.csv" --symbol EURUSD --tf H1 --last 120 \
+      --out "./output/" --html
+
+  # 直接粘贴 OHLC(每行 date,o,h,l,c)
+  python kline_read.py --text "2026-08-01,1.0800,1.0820,1.0790,1.0810
+2026-08-02,1.0810,1.0835,1.0805,1.0828" --symbol XAUUSD --tf D1
+
+  # 仅出 JSON(供其他脚本/AI 流水消费)
+  python kline_read.py --csv data.csv --json --no-text
+"""
+
+import argparse
+import json
+import math
+import os
+import sys
+
+DEFAULT_OUT = os.environ.get("KINGFOREX_OUT", "./output")
+
+
+# ----------------------------- 解析层 -----------------------------
+def _is_num(s):
+    s = s.strip().replace(",", "").replace("-", "")
+    if s.startswith(".") or s.endswith("."):
+        return False
+    return s.replace(".", "").isdigit() and s.count(".") <= 1
+
+
+def _is_date(s):
+    s = s.strip()
+    if not s:
+        return False
+    if any(ch in s for ch in "-./:"):
+        clean = s.replace("-", "").replace(".", "").replace(":", "").replace("/", "")
+        return not clean.isdigit()
+    return False
+
+
+def parse_csv(path):
+    """解析 MT4 导出 CSV 或通用 OHLCV,返回 bars=[{t,o,h,l,c,v}]"""
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+        text = f.read()
+    delim = ";" if text.count(";") > text.count(",") else ","
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    colmap = None
+    bars = []
+    for ln in lines:
+        cols = [c.strip() for c in ln.split(delim)]
+        low = [c.lower() for c in cols]
+        # 检测表头(仅取第一次出现的表头)
+        if colmap is None and ("open" in low or "close" in low or "<open" in low):
+            colmap = {}
+            for i, c in enumerate(low):
+                if "open" in c:
+                    colmap["o"] = i
+                elif "high" in c:
+                    colmap["h"] = i
+                elif "low" in c:
+                    colmap["l"] = i
+                elif "close" in c:
+                    colmap["c"] = i
+                elif "vol" in c:
+                    colmap["v"] = i
+                elif "date" in c:
+                    colmap["date"] = i
+                elif "time" in c:
+                    colmap["time"] = i
+            continue
+        try:
+            if colmap:
+                o = float(cols[colmap["o"]])
+                h = float(cols[colmap["h"]])
+                l = float(cols[colmap["l"]])
+                c = float(cols[colmap["c"]])
+                v = float(cols[colmap["v"]]) if ("v" in colmap and colmap["v"] < len(cols)) else 0.0
+                tparts = [cols[colmap[k]] for k in ("date", "time") if k in colmap and colmap[k] < len(cols)]
+                t = " ".join(tparts)
+            else:
+                if _is_date(cols[0]):
+                    rest = [x for x in cols[1:] if _is_num(x)]
+                    nums = [float(x.replace(",", "")) for x in rest]
+                    if len(nums) < 4:
+                        continue
+                    o, h, l, c = nums[0], nums[1], nums[2], nums[3]
+                    v = nums[4] if len(nums) > 4 else 0.0
+                    t = cols[0] + (" " + cols[1] if len(cols) >= 6 else "")
+                else:
+                    nums = [float(x.replace(",", "")) for x in cols if _is_num(x)]
+                    if len(nums) < 4:
+                        continue
+                    o, h, l, c = nums[0], nums[1], nums[2], nums[3]
+                    v = nums[4] if len(nums) > 4 else 0.0
+                    t = str(len(bars) + 1)
+        except Exception:
+            continue
+        if h < max(o, c) or l > min(o, c):
+            # 非法 HL 关系跳过
+            continue
+        bars.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
+    return bars
+
+
+def parse_text(text):
+    """解析 --text 粘贴的 OHLC,每行 date,o,h,l,c[,v]"""
+    bars = []
+    for ln in text.strip().splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        parts = [p.strip() for p in ln.replace(";", ",").split(",")]
+        if len(parts) < 5:
+            continue
+        try:
+            date = parts[0]
+            o, h, l, c = (float(x.replace(",", "")) for x in parts[1:5])
+            v = float(parts[5].replace(",", "")) if len(parts) > 5 else 0.0
+        except Exception:
+            continue
+        bars.append({"t": date, "o": o, "h": h, "l": l, "c": c, "v": v})
+    return bars
+
+
+# ----------------------------- 计算层 -----------------------------
+def ema(vals, n):
+    if not vals or n <= 0:
+        return []
+    k = 2.0 / (n + 1)
+    out = []
+    prev = vals[0]
+    for i, v in enumerate(vals):
+        prev = v if i == 0 else v * k + prev * (1 - k)
+        out.append(prev)
+    return out
+
+
+def atr(highs, lows, closes, n=14):
+    if len(closes) < 2:
+        return 0.0
+    trs = []
+    for i in range(1, len(closes)):
+        tr = max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1]))
+        trs.append(tr)
+    if not trs:
+        return 0.0
+    return sum(trs[-n:]) / len(trs[-n:])
+
+
+def pivots(highs, lows, window=5):
+    """找局部摆动高低点,返回 (idx, price) 列表"""
+    ph, pl = [], []
+    for i in range(window, len(highs) - window):
+        seg_h = highs[i - window:i + window + 1]
+        seg_l = lows[i - window:i + window + 1]
+        # 浮点容差比较(避免随机数据下极值几乎不严格相等导致漏检)
+        if highs[i] >= max(seg_h) - 1e-9:
+            ph.append((i, highs[i]))
+        if lows[i] <= min(seg_l) + 1e-9:
+            pl.append((i, lows[i]))
+    return ph, pl
+
+
+def structure_from_pivots(ph, pl):
+    """基于最近摆动高低点判断 HH/HL/LH/LL(单边数据也尽量判)"""
+    if len(ph) < 2 and len(pl) < 2:
+        return "样本不足"
+    rh = [p for _, p in ph[-3:]]
+    rl = [p for _, p in pl[-3:]]
+    up_h = all(rh[i] < rh[i + 1] for i in range(len(rh) - 1)) if len(rh) >= 2 else None
+    dn_h = all(rh[i] > rh[i + 1] for i in range(len(rh) - 1)) if len(rh) >= 2 else None
+    up_l = all(rl[i] < rl[i + 1] for i in range(len(rl) - 1)) if len(rl) >= 2 else None
+    dn_l = all(rl[i] > rl[i + 1] for i in range(len(rl) - 1)) if len(rl) >= 2 else None
+    up = (up_h is True) or (up_l is True)
+    dn = (dn_h is True) or (dn_l is True)
+    if up and not dn:
+        return "上升趋势(HH/HL)"
+    if dn and not up:
+        return "下降趋势(LH/LL)"
+    if not up and not dn:
+        return "区间震荡(高低点走平)"
+    return "结构转换中(高低点方向不一)"
+
+
+def round_levels(price, n=5):
+    """生成价格附近的整数关口(网格):step=mag/20,返回当前价上下各约 2 档"""
+    if price <= 0:
+        return []
+    mag = 10 ** math.floor(math.log10(price))
+    step = mag / 20.0  # 1.09→0.05, 2300→50, 114→5, 0.68→0.05
+    base = round(price / step) * step
+    out = []
+    for i in range(-n, n + 1):
+        lv = round(base + i * step, 5)
+        if lv > 0:
+            out.append(lv)
+    # 仅保留靠近当前价的若干档
+    out = [x for x in out if abs(x - price) <= step * 2.5]
+    return sorted(out)[:6]
+
+
+# ---- Morris《蜡烛图精解》形态统计库 ----
+# 样本: 7275 只常见流通股票 / 1460 万个交易日(Morris 实证)
+#   dir     R+=看涨反转, R-=看跌反转
+#   confirm 是否需次日确认(必须 / 推荐 / 不需要)
+#   win1    第 1 日获利比例(%); pnl1 第 1 日 净收益/净亏损(>0 为统计正期望)
+#   rank    综合评级 5=最优; freq 形态出现频率
+# 关键结论:
+#   1) 反转形态胜率大多不足 50%,须靠"确认"与位置过滤提升期望;
+#   2) 顶部形态(上吊线)统计优势显著强于底部形态(锤子线)——反直觉但被数据支持;
+#   3) 持续形态出现概率远高于反转形态(1日 75% vs 25%),故默认倾向顺势。
+PATTERN_STATS = {
+    "倒锤子线": {"dir": "R+", "confirm": "不需要", "win1": 67, "pnl1": 1.44, "rank": 5, "freq": "罕见(均隔1226根)"},
+    "上吊线":   {"dir": "R-", "confirm": "不需要", "win1": 69, "pnl1": 1.32, "rank": 4, "freq": "频繁(均隔117根)"},
+    "看涨孕线": {"dir": "R+", "confirm": "不需要", "win1": 49, "pnl1": 0.07, "rank": 3, "freq": "极频繁(均隔69根)"},
+    "看涨吞没": {"dir": "R+", "confirm": "推荐",   "win1": 44, "pnl1": -0.27, "rank": 2, "freq": "极频繁(均隔74根)"},
+    "看跌孕线": {"dir": "R-", "confirm": "必须",   "win1": 50, "pnl1": -0.08, "rank": 2, "freq": "极频繁(均隔59根)"},
+    "流星线":   {"dir": "R-", "confirm": "必须",   "win1": 46, "pnl1": -0.44, "rank": 1, "freq": "罕见(均隔3418根)"},
+    "看跌吞没": {"dir": "R-", "confirm": "必须",   "win1": 45, "pnl1": -0.34, "rank": 1, "freq": "极频繁(均隔73根)"},
+    "锤子线":   {"dir": "R+", "confirm": "必须",   "win1": 41, "pnl1": -0.57, "rank": 1, "freq": "频繁(均隔284根)"},
+    "内包线":   {"dir": "—",  "confirm": "必须(待突破方向)", "win1": None, "pnl1": None, "rank": None, "freq": "—"},
+}
+
+# Morris: 预测时段越长,形态预测力越弱(持续形态 vs 反转形态 vs 抛硬币)
+HORIZON_TABLE = [(1, 75, 25, 50), (3, 65, 35, 50), (5, 60, 40, 50), (7, 55, 45, 50), (10, 50, 50, 50)]
+
+
+def trend_context(bars, look=20):
+    """形态识别前必须先确认现有趋势(Morris 第二假定)。
+
+    返回 (趋势标签, 标准化斜率)。up=上升 / down=下降 / range=震荡
+    """
+    c = [b["c"] for b in bars]
+    if len(c) < look + 1:
+        return "unknown", 0.0
+    base = c[-look - 1]
+    slope = (c[-1] - base) / base if base else 0.0
+    # 用 ATR 归一化,避免不同品种量纲差异
+    a = atr([b["h"] for b in bars], [b["l"] for b in bars], c, 14) or 1e-9
+    norm = (c[-1] - base) / (a * look)          # 每根平均推进多少个 ATR
+    if norm > 0.05:
+        return "up", slope
+    if norm < -0.05:
+        return "down", slope
+    return "range", slope
+
+
+def _confirm_state(bars, i, direction):
+    """用次日 K 线确认形态是否成立(Morris:次日开盘确认,保险起见等收盘)。
+
+    direction: +1 看涨形态 / -1 看跌形态
+    返回 "已确认" / "已证伪" / "待确认(最新一根)"
+    """
+    if i >= len(bars) - 1:
+        return "待确认(最新一根)"
+    nxt = bars[i + 1]
+    cur = bars[i]
+    body_hi, body_lo = max(cur["o"], cur["c"]), min(cur["o"], cur["c"])
+    if direction > 0 and nxt["c"] > body_hi:
+        return "已确认"
+    if direction < 0 and nxt["c"] < body_lo:
+        return "已确认"
+    return "已证伪"
+
+
+def detect_patterns(bars, n=5, ctx="unknown"):
+    """按 Morris《蜡烛图精解》量化标准识别形态。
+
+    与旧版差异:
+      - 严格按影线/实体倍数判定(而非占比阈值)
+      - 依据趋势背景区分锤子线↔上吊线、倒锤子线↔流星线
+      - 孕线用实体判定,内包线用最高最低价判定(两者不同)
+      - 输出附 Morris 统计优势与确认状态
+    """
+    res = []
+    lo = max(1, len(bars) - n)
+    for i in range(lo, len(bars)):
+        b = bars[i]
+        p = bars[i - 1] if i > 0 else None
+        rng = b["h"] - b["l"]
+        if rng <= 0:
+            continue
+        body = abs(b["c"] - b["o"]) or 1e-9      # 防零除
+        up_sh = b["h"] - max(b["o"], b["c"])     # 上影
+        dn_sh = min(b["o"], b["c"]) - b["l"]     # 下影
+        bull = b["c"] > b["o"]
+
+        # ---- 伞形线族(长下影、小实体、实体在顶部) ----
+        # 标准: 下影 >= 2倍实体; 上影 <= 幅度10%; 实体位于区间上半部
+        is_umbrella = (dn_sh >= 2.0 * body) and (up_sh <= 0.10 * rng) and \
+                      (min(b["o"], b["c"]) >= b["l"] + 0.6 * rng)
+        if is_umbrella:
+            if ctx == "down":
+                name = "锤子线"
+                bias = "看涨反转(阴线锤子弱于阳线)" if not bull else "看涨反转(阳线,力度更强)"
+                res.append((i, name, bias, b["l"], +1))
+            elif ctx == "up":
+                name = "上吊线"
+                bias = "看跌反转(阴线,力度更强)" if not bull else "看跌反转(阳线上吊线弱于阴线)"
+                res.append((i, name, bias, b["h"], -1))
+
+        # ---- 倒锤子线 / 流星线(长上影、小实体、实体在底部) ----
+        # 标准: 上影 >= 2倍实体(流星线>=3倍); 下影 <= 幅度10%; 实体位于区间下半部
+        is_top_shadow = (up_sh >= 2.0 * body) and (dn_sh <= 0.10 * rng) and \
+                        (max(b["o"], b["c"]) <= b["l"] + 0.4 * rng)
+        if is_top_shadow and p is not None:
+            gap_up = b["l"] > p["h"]             # 向上跳空(流星线必要条件)
+            if ctx == "up" and up_sh >= 3.0 * body and gap_up:
+                res.append((i, "流星线", "看跌反转(需确认,单独使用统计期望为负)", b["h"], -1))
+            elif ctx == "down":
+                res.append((i, "倒锤子线", "看涨反转(统计最优形态,无需确认)", b["l"], +1))
+
+        if p is None:
+            continue
+        p_body = abs(p["c"] - p["o"]) or 1e-9
+        p_bull = p["c"] > p["o"]
+        b_hi, b_lo = max(b["o"], b["c"]), min(b["o"], b["c"])
+        p_hi, p_lo = max(p["o"], p["c"]), min(p["o"], p["c"])
+
+        # ---- 吞没形态(实体完全包覆,颜色相反,顶底不可同时相等) ----
+        engulf_up = (not p_bull) and bull and (b_hi >= p_hi) and (b_lo <= p_lo) and \
+                    not (b_hi == p_hi and b_lo == p_lo)
+        engulf_dn = p_bull and (not bull) and (b_hi >= p_hi) and (b_lo <= p_lo) and \
+                    not (b_hi == p_hi and b_lo == p_lo)
+        if engulf_up and ctx == "down":
+            strong = "强(前实体≤后实体70%)" if p_body <= 0.7 * body else "一般"
+            res.append((i, "看涨吞没", "看涨反转(%s,建议确认)" % strong, b["c"], +1))
+        elif engulf_dn and ctx == "up":
+            strong = "强(前实体≤后实体70%)" if p_body <= 0.7 * body else "一般"
+            res.append((i, "看跌吞没", "看跌反转(%s,必须确认)" % strong, b["c"], -1))
+
+        # ---- 孕线 Harami(第二根实体完全包含于第一根实体,颜色相反) ----
+        harami = (b_hi <= p_hi) and (b_lo >= p_lo) and \
+                 not (b_hi == p_hi and b_lo == p_lo) and (bull != p_bull)
+        if harami and (body <= 0.7 * p_body):
+            if (not p_bull) and ctx == "down":
+                res.append((i, "看涨孕线", "看涨反转(前大阴线后小实体,无需确认)", b["c"], +1))
+            elif p_bull and ctx == "up":
+                res.append((i, "看跌孕线", "看跌反转(前大阳线后小实体,必须确认)", b["c"], -1))
+
+        # ---- 内包线 Inside Bar(传统定义用最高最低价,不等同孕线) ----
+        if b["h"] < p["h"] and b["l"] > p["l"]:
+            res.append((i, "内包线", "整理蓄势(待突破方向,顺势突破概率更高)", b["c"], 0))
+
+    # 附加 Morris 统计与确认状态
+    out = []
+    for i, name, bias, price, d in res:
+        st = PATTERN_STATS.get(name, {})
+        conf = _confirm_state(bars, i, d) if d else "—"
+        out.append({
+            "idx": i, "name": name, "bias": bias, "price": round(price, 5),
+            "dir": st.get("dir", "—"),
+            "confirm_rule": st.get("confirm", "—"),
+            "confirm_state": conf,
+            "win1": st.get("win1"),
+            "pnl1": st.get("pnl1"),
+            "rank": st.get("rank"),
+            "freq": st.get("freq", "—"),
+        })
+    return out
+
+
+# ----------------------------- 分析主函数 -----------------------------
+def analyze(bars, symbol="", tf="", lookback=120):
+    bars = bars[-lookback:] if lookback else bars
+    if len(bars) < 10:
+        return {"error": "K 线数量不足(<10),无法可靠解读"}
+    o = [b["o"] for b in bars]
+    h = [b["h"] for b in bars]
+    l = [b["l"] for b in bars]
+    c = [b["c"] for b in bars]
+    v = [b["v"] for b in bars]
+    last = bars[-1]
+    ema20 = ema(c, 20)
+    ema50 = ema(c, 50)
+    a = atr(h, l, c, 14)
+    ph, pl = pivots(h, l, window=5)
+    struct = structure_from_pivots(ph, pl)
+
+    # 趋势(EMA 排列 + 价格位置)
+    e20, e50, cl = ema20[-1], ema50[-1], c[-1]
+    if cl > e20 > e50:
+        ema_trend = "多头排列(价格>EMA20>EMA50)"
+    elif cl < e20 < e50:
+        ema_trend = "空头排列(价格<EMA20<EMA50)"
+    elif cl > e20 and e20 < e50:
+        ema_trend = "反弹(价格上穿 EMA20,但 EMA20<EMA50)"
+    elif cl < e20 and e20 > e50:
+        ema_trend = "回落(价格下穿 EMA20,但 EMA20>EMA50)"
+    else:
+        ema_trend = "均线纠缠(无明确排列)"
+
+    # 关键位
+    recent_ph = [(i, p) for i, p in ph if i >= len(bars) - 60]
+    recent_pl = [(i, p) for i, p in pl if i >= len(bars) - 60]
+    resist = sorted({round(p, 5) for _, p in recent_ph}, reverse=True)[:4]
+    support = sorted({round(p, 5) for _, p in recent_pl})[:4]
+    # 样本不足时的兜底:用近期高低点作临时关键位,结构以 EMA 趋势描述
+    if not resist:
+        resist = [round(max(h[-min(30, len(h)):]), 5)]
+    if not support:
+        support = [round(min(l[-min(30, len(l)):]), 5)]
+    if struct == "样本不足":
+        if "多头" in ema_trend:
+            struct = "顺势偏多(摆动点样本少,以EMA为准)"
+        elif "空头" in ema_trend:
+            struct = "顺势偏空(摆动点样本少,以EMA为准)"
+        else:
+            struct = "样本不足(建议≥30根K线)"
+    rnd = round_levels(cl, 5)
+    # 取当前价上下最近各 2 个整数位
+    rnd_near = [x for x in rnd if abs(x - cl) <= abs(rnd[0] - cl) * 3][:6] if rnd else []
+
+    # 趋势背景(形态识别的前置条件:Morris 第二假定——先确认趋势,再识别形态)
+    trend_ctx, _slope = trend_context(bars)
+    ctx_source = "摆动斜率(ATR归一化)"
+    # 样本不足(<21根)时用 EMA 排列兜底,保证仍能出形态,但标注降级
+    if trend_ctx == "unknown":
+        if "多头" in ema_trend:
+            trend_ctx, ctx_source = "up", "EMA兜底(样本<21根,可靠性降级)"
+        elif "空头" in ema_trend:
+            trend_ctx, ctx_source = "down", "EMA兜底(样本<21根,可靠性降级)"
+        else:
+            trend_ctx, ctx_source = "range", "EMA兜底(样本<21根,可靠性降级)"
+
+    # 形态(带 Morris 统计评级与确认状态,按评级降序)
+    pats = detect_patterns(bars, 5, trend_ctx)
+    pats.sort(key=lambda x: (x.get("rank") or 0, x["idx"]), reverse=True)
+
+    # 形态综合提示:统计正期望 + 确认状态 双重过滤
+    # 已证伪的形态即使统计占优也失效,不得推荐
+    alive = [p for p in pats if p.get("confirm_state") != "已证伪"]
+    dead_strong = [p for p in pats
+                   if p.get("confirm_state") == "已证伪" and (p.get("pnl1") or 0) > 0]
+    strong = [p for p in alive if (p.get("pnl1") or 0) > 0]
+    confirmed = [p for p in strong if p.get("confirm_state") == "已确认"]
+    rev_alive = [p for p in alive if p.get("dir") in ("R+", "R-")]   # 反转形态(排除整理形态)
+    if confirmed:
+        best = confirmed[0]
+        pat_note = ("可直接跟踪:%s(第%s根,已确认,1日胜率约%s%%,净盈亏比 %s)——统计正期望且次日已验证"
+                    % (best["name"], best["idx"], best["win1"], best["pnl1"]))
+    elif strong:
+        best = strong[0]
+        pat_note = ("最强信号:%s(第%s根,1日胜率约%s%%,净盈亏比 %s,%s)——统计占优但尚未确认,等次日收盘验证"
+                    % (best["name"], best["idx"], best["win1"], best["pnl1"], best["confirm_state"]))
+    elif rev_alive:
+        pat_note = ("检出 %d 个反转形态但均非统计正期望(pnl1≤0),按 Morris 结论须等次日确认后再动,不宜裸信号入场"
+                    % len(rev_alive))
+    elif alive:
+        pat_note = "仅检出整理形态(内包线),无反转信号——震荡蓄势,待突破方向确认后再顺势跟进"
+    else:
+        pat_note = "近期无符合 Morris 标准的有效形态;无信号本身即信息——倾向顺势或观望"
+    if dead_strong:
+        pat_note += " | 已失效(次日证伪,勿追):" + "、".join(
+            "%s@第%s根" % (p["name"], p["idx"]) for p in dead_strong)
+
+    # 预测时效提示(Morris:时段越长,形态预测力越弱)
+    horizon_note = "形态预测力随持有期衰减:" + "; ".join(
+        "%d日 持续%d%%/反转%d%%" % (d, s, r) for d, s, r, _c in HORIZON_TABLE)
+
+    # 量价背离(修正:在末段窗口内定位极值索引,避免 c.index 在全表误匹配)
+    divergence = ""
+    win = min(20, len(c))
+    if any(x > 0 for x in v) and win >= 10:
+        seg_c, seg_v = c[-win:], v[-win:]
+        v_mean = sum(seg_v) / len(seg_v)
+        i_h = seg_c.index(max(seg_c))
+        i_l = seg_c.index(min(seg_c))
+        if i_h >= win - 5 and seg_v[i_h] < v_mean:
+            divergence = "近 %d 根价格创新高但量能低于均值,警惕上行动能背离(反转预警)" % win
+        elif i_l >= win - 5 and seg_v[i_l] < v_mean:
+            divergence = "近 %d 根价格创新低但量能低于均值,警惕下行动能背离(反弹预警)" % win
+
+    report = {
+        "symbol": symbol,
+        "tf": tf,
+        "bars_used": len(bars),
+        "last_close": round(cl, 5),
+        "ema20": round(e20, 5),
+        "ema50": round(e50, 5),
+        "atr14": round(a, 5),
+        "trend_ema": ema_trend,
+        "trend_context": trend_ctx,
+        "trend_ctx_source": ctx_source,
+        "structure": struct,
+        "resistance": [round(x, 5) for x in resist],
+        "support": [round(x, 5) for x in support],
+        "round_levels": [round(x, 5) for x in rnd_near],
+        "patterns": pats,
+        "pattern_note": pat_note,
+        "horizon_note": horizon_note,
+        "divergence": divergence,
+        "last_bar": {"t": last["t"], "o": last["o"], "h": last["h"], "l": last["l"], "c": last["c"], "v": last["v"]},
+    }
+    return report
+
+
+# ----------------------------- 输出层 -----------------------------
+def to_text(r):
+    if "error" in r:
+        return "✗ " + r["error"]
+    lines = []
+    lines.append(f"【K线盘面解读】{r['symbol'] or '—'} · {r['tf'] or '—'}  共 {r['bars_used']} 根")
+    lines.append(f"最新收盘: {r['last_close']}   日期/序号: {r['last_bar']['t']}")
+    lines.append("─" * 40)
+    lines.append(f"1) 趋势(EMA): {r['trend_ema']}   EMA20={r['ema20']}  EMA50={r['ema50']}")
+    ctx_map = {"up": "上升", "down": "下降", "range": "震荡", "unknown": "样本不足"}
+    lines.append(f"2) 市场结构: {r['structure']}   [趋势背景: {ctx_map.get(r.get('trend_context','unknown'),'—')}"
+                 f" ({r.get('trend_ctx_source','—')}) → 形态判定的前置条件]")
+    lines.append(f"3) ATR(14): {r['atr14']}  (止损距离建议以 ATR 倍数表达)")
+    lines.append(f"4) 阻力位: {', '.join(str(x) for x in r['resistance']) or '—'}")
+    lines.append(f"5) 支撑位: {', '.join(str(x) for x in r['support']) or '—'}")
+    lines.append(f"6) 整数关口: {', '.join(str(x) for x in r['round_levels']) or '—'}")
+    if r["patterns"]:
+        lines.append("7) 价格行为形态(Morris《蜡烛图精解》量化标准,按统计评级排序):")
+        for p in r["patterns"]:
+            star = ("★" * p["rank"]) if p.get("rank") else "—"
+            stat = ""
+            if p.get("win1") is not None:
+                stat = f" | 1日胜率≈{p['win1']}% 净盈亏比{p['pnl1']} {star} | 确认:{p['confirm_rule']}→{p['confirm_state']} | 频率:{p['freq']}"
+            lines.append(f"   · 第{p['idx']}根 【{p['name']}】{p['dir']} — {p['bias']} (参考价 {p['price']}){stat}")
+        lines.append(f"   >> 综合: {r.get('pattern_note','')}")
+        lines.append(f"   >> 时效: {r.get('horizon_note','')}")
+    else:
+        lines.append("7) 价格行为形态: 无符合 Morris 标准的形态")
+        lines.append(f"   >> 综合: {r.get('pattern_note','')}")
+    if r["divergence"]:
+        lines.append(f"8) 量价提示: {r['divergence']}")
+    lines.append("─" * 40)
+    lines.append("判定纪律: 以上为客观盘面事实。方向须顺宏观研判与跨市场印证;")
+    lines.append("          反转形态单独使用统计期望多为负,须等确认 + 关键位共振再动手。")
+    return "\n".join(lines)
+
+
+def to_html(r, bars, symbol, tf):
+    if "error" in r:
+        return f"<html><body><h3>{r['error']}</h3></body></html>"
+    # ECharts candlestick data: [open, close, low, high]
+    view = bars[-max(60, r["bars_used"]) :]
+    data = [[b["t"], b["o"], b["c"], b["l"], b["h"]] for b in view]
+    cats = [b["t"] for b in view]
+    marks = []
+    for lv in r["resistance"]:
+        marks.append({"yAxis": lv, "label": {"formatter": f"阻 {lv}", "color": "#ff4d4f"}, "lineStyle": {"color": "#ff4d4f"}})
+    for lv in r["support"]:
+        marks.append({"yAxis": lv, "label": {"formatter": f"支 {lv}", "color": "#52c41a"}, "lineStyle": {"color": "#52c41a"}})
+    for lv in r["round_levels"]:
+        marks.append({"yAxis": lv, "label": {"formatter": f"{lv}", "color": "#888"}, "lineStyle": {"color": "#555", "type": "dashed"}})
+    html = """<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<title>K线盘面解读 %s %s</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>body{background:#0b0e14;color:#e6e6e6;font-family:system-ui,'Microsoft YaHei';margin:0;padding:16px}
+h2{color:#7df9ff;text-shadow:0 0 8px #1b6} .box{background:#11151f;border:1px solid #1f2a3a;border-radius:10px;padding:12px;margin-top:12px}
+.k{color:#7df9ff} .r{color:#ff4d4f} .g{color:#52c41a}</style></head>
+<body>
+<h2>K线盘面解读 · %s · %s</h2>
+<div id="main" style="width:100%%;height:460px"></div>
+<div class="box">%s</div>
+<script>
+var chart=echarts.init(document.getElementById('main'),'dark');
+var data=%s; var cats=%s;
+chart.setOption({backgroundColor:'#0b0e14',
+ grid:{left:60,right:20,top:20,bottom:60},
+ xAxis:{type:'category',data:cats,axisLabel:{color:'#888'}},
+ yAxis:{scale:true,axisLabel:{color:'#888'}},
+ tooltip:{trigger:'axis'},
+ series:[{type:'candlestick',data:data.map(d=>[d[1],d[2],d[3],d[4]]),
+  itemStyle:{color:'#ff4d4f',color0:'#52c41a',borderColor:'#ff4d4f',borderColor0:'#52c41a'},
+  markLine:{symbol:'none',data:%s}}]});
+</script></body></html>""" % (
+        symbol, tf, symbol, tf,
+        to_text(r).replace("\n", "<br>"),
+        json.dumps(data, ensure_ascii=False),
+        json.dumps(cats, ensure_ascii=False),
+        json.dumps(marks, ensure_ascii=False),
+    )
+    return html
+
+
+# ----------------------------- 入口 -----------------------------
+def main():
+    ap = argparse.ArgumentParser(description="K线盘面解读引擎")
+    ap.add_argument("--csv", help="MT4/通用 OHLCV CSV 路径")
+    ap.add_argument("--text", help="粘贴 OHLC 文本(每行 date,o,h,l,c[,v])")
+    ap.add_argument("--symbol", default="", help="品种名(仅标注)")
+    ap.add_argument("--tf", default="", help="周期(仅标注)")
+    ap.add_argument("--last", type=int, default=120, help="仅分析最近 N 根(默认120)")
+    ap.add_argument("--out", default=DEFAULT_OUT, help="输出目录")
+    ap.add_argument("--json", action="store_true", help="输出 JSON 文件")
+    ap.add_argument("--html", action="store_true", help="输出 HTML 标注图")
+    ap.add_argument("--no-text", action="store_true", help="不打印文本解读")
+    args = ap.parse_args()
+
+    if args.csv:
+        bars = parse_csv(args.csv)
+    elif args.text:
+        bars = parse_text(args.text)
+    else:
+        ap.print_help()
+        return
+
+    if not bars:
+        print("✗ 未能解析出任何 K 线(检查 CSV 格式或 --text)")
+        return
+
+    rep = analyze(bars, args.symbol, args.tf, args.last)
+    if not args.no_text:
+        print(to_text(rep))
+
+    os.makedirs(args.out, exist_ok=True)
+    token = (args.symbol or "kline") + ("_" + args.tf if args.tf else "")
+    if args.json:
+        jp = os.path.join(args.out, f"kline_read_{token}.json")
+        with open(jp, "w", encoding="utf-8") as f:
+            json.dump(rep, f, ensure_ascii=False, indent=2)
+        print(f"\n[JSON] -> {jp}")
+    if args.html:
+        hp = os.path.join(args.out, f"kline_read_{token}.html")
+        with open(hp, "w", encoding="utf-8") as f:
+            f.write(to_html(rep, bars, args.symbol, args.tf))
+        print(f"[HTML] -> {hp}")
+
+
+if __name__ == "__main__":
+    main()

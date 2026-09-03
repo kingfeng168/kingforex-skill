@@ -64,7 +64,7 @@
 
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
-| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 已配置于 `scripts/.eia_key`);详见第 7.2 节 |
+| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(需自备 key,见第 7.2 节);详见第 7.2 节 |
 | **IEA** `iea.org` | 国际组织一手 | 月度石油市场报告(MOMR 同类)、全球需求预测、库存 | 月 | 网页 / 报告 |
 | **OPEC** `opec.org` | 官方一手 | 月度石油市场报告、产量配额、执行率、闲置产能 | 月 | 网页 / 报告 |
 | **API**(美国石油协会) | 行业一手 | 周度库存补充(公布早于 EIA) | 周二 | 网页 |
@@ -77,7 +77,7 @@
 | 数据源 | 权威性 | 关键内容 | 获取方式 |
 |--------|--------|----------|----------|
 | **TradingView** `tradingview.com` | 市场基准 | 跨市场图表模板、VIX、信用利差(ICE/BofA)、AUD/JPY、USD/CAD、USD/CNH | 网页 / 模板 |
-| **本地宏观日报系统(可选)** | 自用 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观仪表盘输入源,**避免重复采集** | 读取 `./daily_data.json` |
+| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观仪表盘输入源,**避免重复采集** | 读取 `./output\financial-dashboard\daily_data.json` |
 | **中国信贷脉冲** | 一手派生 | 社融增量 / GDP(PBOC),领先铜、澳元、人民币 3–6 个月 | PBOC 网页 / CEIC / Wind |
 
 ---
@@ -114,10 +114,10 @@ python scripts/bis_fetch.py --list          # 列出全部数据集
 python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 ```
 
-### 7.2 EIA v2 API（原油模块,已配置 key）
+### 7.2 EIA v2 API（原油模块,需自备 key）
 
 - **Base**:`https://api.eia.gov/v2`,免费 key 注册 https://www.eia.gov/opendata/。
-- **Key 已配置**:key 已写入 `scripts/.eia_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装 skill 后需重设(见 SKILL.md 末尾"密钥安全")。
+- **Key 配置**:读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > 脚本同目录 `.eia_key`(单行纯文本)。**密钥不得硬编码进脚本源码**,`.eia_key` 已在 `.gitignore` 中排除,不会随仓库分发。
 - **权威价值**:周度原油/汽油/馏分油库存、WTI/Brent 现货价——原油模块(模块四)的核心一手源,直接驱动 EIA 周三库存事件交易研判。
 - **常用路由/系列(2026-08 实测校准)**:
   - `petroleum/sum/sndw`(周度供需,**强制需要 `frequency=weekly`**):原油库存 `WCRSTUS1`、汽油总库存 `WGTSTUS1`、馏分油库存 `WDISTUS1`(单位均为千桶)。
@@ -126,7 +126,7 @@ python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 - **脚本**:`scripts/eia_fetch.py`(标准库;预设 `crude_stocks/gas_stocks/dist_stocks/wti/brent`;`--last N` 自动按 period 倒序取最近 N 期,规避 EIA 5000 行分页截断)。
 
 ```bash
-# 美国商业原油库存最近 12 周(无需再传 key,自动读 .eia_key)
+# 美国商业原油库存最近 12 周(配置好 key 后无需每次传入,或显式 --api-key YOURKEY)
 python scripts/eia_fetch.py --preset crude_stocks --last 12 --out "./output/eia_crude_stocks.csv"
 # 汽油总库存 / 馏分油库存 / WTI / Brent
 python scripts/eia_fetch.py --preset gas_stocks --last 12
@@ -217,11 +217,39 @@ python scripts/live_market_fetch.py --preset all --json
 
 > ⚠️ 说明:新浪为非官方接口,需带 Referer 头(脚本已内置)并以 GBK 解码;加密交易所(Binance/OKX/Bybit/CoinGecko 等)在大陆网络被墙、Yahoo/ECB SDW/BIS 旧端点不可达,均已排除,不纳入本脚本。A股/港股实时(东财/腾讯)、需 key 源(Alpha Vantage/Twelve Data/FRED/Tushare)及偏题大模型清单,仅记录于用户桌面档案,未脚本化。
 
-### 7.7 其他取数方式
+### 7.7 K 线历史数据(盘面解读的输入)
+
+**本环境实测结论(2026-08/09 中国大陆网络):免费 K 线历史源基本不可用**,故 `scripts/kline_read.py` 以 **MT4 导出 CSV** 为主输入(零网络依赖、与手动交易习惯一致)。
+
+| 源 | 状态 | 说明 |
+|---|---|---|
+| **MT4 导出 CSV** | ✅ **推荐主输入** | 文件→另存为,或"数据窗口"右键导出;脚本自动识别 `Date,Time,O,H,L,C,V` 表头与制表符/逗号分隔 |
+| 粘贴 OHLC 文本 | ✅ 支持 | `--text "date,o,h,l,c"` 多行,临时快速解读 |
+| 新浪旧接口 `CN_FX_Data` / `CN_MarketDataService` | ❌ 失效 | 接口已下线 |
+| 东方财富 `push2his` | ❌ 被墙/超时 | 本环境不可达 |
+| Yahoo `query1.finance.yahoo.com` | ❌ HTTP 403 | 需 OAuth,已关闭匿名访问 |
+| stooq.com | ❌ JS 挑战页 | 非 API,无法解析 |
+
+**MT4 导出步骤**:图表右键 →「数据窗口」→ 右键 →「导出」→ 存为 `.csv`(默认制表符分隔,脚本兼容)。
+若只需最近 N 根,用 `--last N` 控制,默认值 120。
+
+**脚本**:`scripts/kline_read.py`(纯标准库,无需 key)
+
+```bash
+# CSV 输入 + 输出 JSON/HTML 标注图
+python scripts/kline_read.py --csv "./output/EURUSD_H1.csv" \
+    --symbol EURUSD --tf H1 --last 120 --json --html --out "./output"
+# 粘贴文本快速解读
+python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880" --symbol EURUSD --tf D1
+```
+
+---
+
+### 7.8 其他取数方式
 
 - **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key,支持序列历史拉取(可用 `curl` 或 Python `requests`)。
 - **WebFetch**:本环境可直接对官方/聚合页面做结构化抓取(用于无 API 的源,如 WGC、OPEC 报告要点)。
-- **本地日报系统(可选)**:读取 `./daily_data.json`,作为仪表盘与滚动相关性的本地数据源。
+- **用户日报系统**:读取 `./output\financial-dashboard\daily_data.json`,作为仪表盘与滚动相关性的本地数据源。
 - **Python / Excel**:对取回数据自动更新仪表盘与 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
 
 ---
