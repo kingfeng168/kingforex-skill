@@ -2,6 +2,41 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.0] — 2026-09-04
+
+### 新增
+
+- **`scripts/fred_fetch.py`**（FRED 圣路易斯联储宏观/利率 API v1，纯标准库）：模块一「宏观利率地基」核心一手源。拉取 `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率·黄金定价第一锚)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差·曲线倒挂/衰退信号)、短端 `DGS3MO`/`DGS1`/`DGS2`/`DGS5`、长端 `DGS30`、政策利率 `FEDFUNDS`/`DFF`；7 个 preset（`nominal_10y` / `real_10y` / `breakeven_10y` / `curve_2s10s` / `short_end` / `fed_funds` / `all_rates`）；`--out` 落盘 `.csv`(宽表)/`.json`；缺失值 `.` 自动转空；401=Key 无效 / 400·404=系列不存在 / 429=限速 均优雅降级，**绝不杜撰**。
+- **三源密钥本地化（齐备）**：EIA（原油）、Twelve Data（K 线）、FRED（宏观利率）三枚 key 分别存于 `scripts/.eia_key` / `.td_key` / `.fred_key`（本地文件、不进 zip）；读取优先级统一为 `--api-key` > 环境变量 > 本地文件。
+
+### 变更
+
+- `SKILL.md`：密钥安全节增补 FRED；脚本清单新增 `fred_fetch.py`；数据源集成「宏观利率(FRED)」条目。
+- `references/data_sources.md`：**新增第 7.10 节 FRED API**（Base / 权威价值 / preset↔系列映射 / 用法 / bash 示例），第 1 节表格 FRED 行补系列与脚本引用。
+
+### 修复
+
+- 无（纯增量）。
+
+## [1.3.0] — 2026-09-03
+
+### 新增
+
+- **`scripts/cftc_fetch.py`**（CFTC COT/TFF 持仓拥挤度，纯标准库）：从 CFTC 官方年度历史文件（`fut_disagg_txt_YYYY.zip` 商品 / `fut_fin_txt_YYYY.zip` 外汇）解析 Managed Money（商品）或 Leveraged Funds（外汇）投机多/空/净头寸；输出**净头寸/OI、多空比 L/S、52 周历史分位（拥挤度等级：极度做多≥90% / 偏拥挤做空≤25% / 中性）、周环比 ΔNet / Δ净头寸-OI**。**免 key、中国可直连 cftc.gov**（2026-09 实测 HTTP 200；Socrata API 在部分网络被拦截，故用官方静态文件兜底）。支持 `--symbol` 别名（GOLD/WTI/EURUSD/JPYUSD/AUDUSD/…）、`--market-code`、`--weeks`、`--json`、`--from-file` 离线解析、`--list`。
+- **`scripts/wgc_lbma_fetch.py`**（黄金 LBMA 代理，纯标准库）：经 gold-api.com 取国际现货金/银（美元/盎司，紧贴 LBMA 定盘，免 key）；WGC 黄金供需/央行购金与 LBMA 官方定盘无免费 JSON API，附 `--manual` 标准化 WebFetch 手工取数指引。
+- **`scripts/opec_fetch.py`**（OPEC MOMR 原油报告，纯标准库）：尽力直连 OPEC 公开页抽取供需关键词，失败（网络/地域封锁，如开发环境 `opec.org` 返回 403）则输出标准化 WebFetch 手工取数指引（全球需求增长/非 OPEC 供应/OPEC 产量/ORB 一揽子价）；IEA MODS 付费，附 KAPSARC 免费历史替代。
+- **`scripts/fedwatch_csv.py`**（CME FedWatch 降息/加息概率，纯标准库）：FedWatch 无免费脚本化 API（需付费订阅 + OAuth），解析用户从 FedWatch Tool 网页手动导出的 CSV，转结构化「各 FOMC 会议 × 降息≥25bp/按兵不动/加息≥25bp 概率」，`--json` 机器可读。
+
+### 变更
+
+- `SKILL.md`：description 增补触发词（持仓拥挤度/CFTC COT/TFF/投机净头寸/OPEC MOMR/WGC 供需/LBMA 定盘）；脚本清单新增 4 个脚本与调用示例；数据源集成「外汇(CFTC 拥挤度)/黄金(WGC/LBMA 代理)/原油(OPEC)/宏观利率(FedWatch 无免费 API 用 CSV 桥接)」条目标注可行性。
+- `references/data_sources.md`：第 1/2/3/4 节表格更新 CFTC/FedWatch/WGC/LBMA/OPEC/IEA 获取方式；**新增第 7.8 节**统一说明四类数据脚本化可行性（✅ 免费直连 / ⚠️ best-effort / ⚠️ 无免费 API 手动桥接）与取数铁律；第 7 节开头脚本计数更新为「十余个」。
+- `README.md`：目录树新增 4 个脚本（总数 15）；新增「权威取数脚本」专节；密钥配置表补 Twelve Data / FedWatch；更新日志补 v1.3.0。
+
+### 修复
+
+- 无（纯增量）。取数铁律一致：**失败即报错/降级，绝不杜撰数字**。
+
 ## [1.2.0] — 2026-09-03
 
 ### 新增

@@ -19,9 +19,9 @@
 
 | 数据源 | 权威性 | 关键内容 / 系列 ID | 更新频率 | 获取方式 |
 |--------|--------|--------------------|----------|----------|
-| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀) | 日频 | 网页 / 公开 API(需免费 key:`fred.stlouisfed.org/docs/api/fred`) |
+| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 已配置于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
 | **美联储官网** `federalreserve.gov` | 官方一手 | SEP 经济预测摘要(含点阵图 Dot Plot)、FOMC 声明、鲍威尔发布会讲稿 | 每次会议 | 网页(经济预测摘要 / monetary policy) |
-| **CME FedWatch** `cmegroup.com`(FedWatch Tool) | 市场隐含 | 联邦基金期货隐含的加息/降息概率路径 | 实时 | 网页工具(利率 → FedWatch) |
+| **CME FedWatch** `cmegroup.com`(FedWatch Tool) | 市场隐含 | 联邦基金期货隐含的加息/降息概率路径 | 实时 | **无免费 API(需付费订阅 + OAuth)**;用 `scripts/fedwatch_csv.py` 解析网页手动导出的概率 CSV(详见第 7.8 节) |
 | **克利夫兰联储 Inflation Expectations** `clevelandfed.org` | 官方一手 | 未来通胀预期模型 | 日/周 | 网页 |
 | **IMF** `imf.org`(SDMX 3.0 API) | 国际组织一手 | IFS 国际金融统计(实际有效汇率 `PRX_REER`、官方储备、货币总量)、WEO 宏观预测 | 月/季 | **脚本** `scripts/imf_fetch.py`(详见第 7 节) |
 | **World Bank** `worldbank.org`(Open Data API v2) | 国际组织一手 | 实际利率 `FR.INR.RINR`、CPI 通胀 `FP.CPI.TOTL.ZG`、GDP 增速 `NY.GDP.MKTP.KD.ZG`、官方汇率 `PA.NUS.FCRF`——利率平价(IRP)/套息利差、通胀差、增长 Regime | 年(多数) | **脚本** `scripts/worldbank_fetch.py`(详见第 7 节) |
@@ -34,7 +34,7 @@
 
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
-| **CFTC COT / TFF** `cftc.gov`(或 `cot.futures.io`) | 官方一手 | 持仓拥挤度;TFF(Traders in Financial Futures)报告覆盖欧元、日元、英镑、澳元等金融期货投机净头寸 | 每周五发布(截至周二) | 网页 / 下载 CSV |
+| **CFTC COT / TFF** `cftc.gov`(或 `cot.futures.io`) | 官方一手 | 持仓拥挤度;TFF(Traders in Financial Futures)报告覆盖欧元、日元、英镑、澳元等金融期货投机净头寸 | 每周五发布(截至周二) | **脚本** `scripts/cftc_fetch.py`(免费·无需 key·中国可直连;详见第 7.8 节);也可网页/CSV |
 | **BIS** `bis.org`(SDMX v2 API) | 国际组织一手 | 各国央行政策利率(`WS_CBPOL`)、美元汇率(`WS_XRU`)、有效汇率(`WS_EER`)、全球流动性(`WS_GLI`) | 月/季 | **脚本** `scripts/bis_fetch.py`(无需 key);详见第 7 节 |
 | **IMF COFER** `imf.org`(SDMX 3.0 API) | 国际组织一手 | 官方外汇储备币种构成——**美元储备份额**(全球去美元化 / 美元信用结构性核心指标)、各币种配置 | 季(年度详细) | **脚本** `scripts/imf_fetch.py`;详见第 7 节 |
 | **World Bank** `worldbank.org`(Open Data API v2) | 国际组织一手 | 经常账户占 GDP(`BN.CAB.XOKA.GD.ZS`——中期汇率方向)、实际利率(`FR.INR.RINR`——套息/IRP)、外储(`FI.RES.TOTL.CD`——EM 脆弱性/干预能力)、政府债务(`GC.DOD.TOTL.GD.ZS`) | 年 | **脚本** `scripts/worldbank_fetch.py`;详见第 7 节 |
@@ -52,8 +52,8 @@
 
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
-| **World Gold Council** `gold.org` | 行业权威一手 | 《Gold Demand Trends》季度报告、央行购金(官方部门统计)、ETF 流量、供需平衡 | 季度 / 月 | 网页 / 研究报告下载 |
-| **LBMA** `lbma.org.uk` | 行业基准 | 伦敦金银定盘价、贵金属清算数据 | 日频 | 网页 |
+| **World Gold Council** `gold.org` | 行业权威一手 | 《Gold Demand Trends》季度报告、央行购金(官方部门统计)、ETF 流量、供需平衡 | 季度 / 月 | **脚本** `scripts/wgc_lbma_fetch.py`(`--manual` 标准化 WebFetch 手工指引);网页/报告下载 |
+| **LBMA** `lbma.org.uk` | 行业基准 | 伦敦金银定盘价、贵金属清算数据 | 日频 | **脚本** `scripts/wgc_lbma_fetch.py`(gold-api.com 现货代理 `XAU`/`XAG`,免费无需 key);官方定盘需 `--manual` 手工取 |
 | **CFTC COT**(见第 2 节) | 官方一手 | 黄金投机净头寸(拥挤度) | 周 | 同第 2 节 |
 | **10Y TIPS**(FRED `DFII10`) | 官方一手 | 黄金定价第一锚(实际利率) | 日频 | 见第 1 节 |
 | **gold-api.com / 新浪**(实时行情源) | 聚合参考 | 伦敦金 XAU 现货价(gold-api 秒级)、新浪 hf_XAU **真实时**(含黄金 T+D gds_AUTD)——盘中金价与事件前后反应 | 实时 | **脚本** `scripts/live_market_fetch.py`(`gold` / `sina` 预设,无需 key) |
@@ -65,8 +65,8 @@
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
 | **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 已配置于 `scripts/.eia_key`);详见第 7.2 节 |
-| **IEA** `iea.org` | 国际组织一手 | 月度石油市场报告(MOMR 同类)、全球需求预测、库存 | 月 | 网页 / 报告 |
-| **OPEC** `opec.org` | 官方一手 | 月度石油市场报告、产量配额、执行率、闲置产能 | 月 | 网页 / 报告 |
+| **IEA** `iea.org` | 国际组织一手 | 月度石油市场报告(MOMR 同类)、全球需求预测、库存 | 月 | 网页 / 报告(**付费 MODS**;免费历史替代 KAPSARC);`scripts/opec_fetch.py` 附指引 |
+| **OPEC** `opec.org` | 官方一手 | 月度石油市场报告、产量配额、执行率、闲置产能 | 月 | **脚本** `scripts/opec_fetch.py`(best-effort 直连 + WebFetch 手工指引,详见第 7.8 节);网页/报告 |
 | **API**(美国石油协会) | 行业一手 | 周度库存补充(公布早于 EIA) | 周二 | 网页 |
 | **期货期限结构**(CME NYMEX / ICE) | 市场基准 | WTI-Brent 价差、Contango/Backwardation | 实时 | 经纪商 / TradingView |
 
@@ -96,7 +96,7 @@
 
 ## 7. 获取方式与工具（含本技能内置脚本）
 
-本技能在 `scripts/` 随包提供六个**标准库实现、无需 pip 安装**的取数脚本,直接拉取权威源、输出 CSV,供研判与交易计划复用:
+本技能在 `scripts/` 随包提供十余个**标准库实现、无需 pip 安装**的取数脚本,直接拉取权威源、输出 CSV/文本,供研判与交易计划复用:
 
 ### 7.1 BIS 官方统计 API（SDMX v2,无需 key）
 
@@ -259,14 +259,93 @@ python scripts/kline_fetch.py --symbol USOIL --interval 1h --api-key <TWELVEDATA
 
 ---
 
-### 7.8 其他取数方式
+### 7.8 CFTC COT/TFF、WGC/LBMA、OPEC、FedWatch 取数脚本
 
-- **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key,支持序列历史拉取(可用 `curl` 或 Python `requests`)。
+本组脚本覆盖此前"仅网页/手工"的四类数据,现均提供脚本化入口(可行性分三档,取数铁律一致:**失败即报错/降级,绝不杜撰**):
+
+#### 7.8.1 CFTC COT / TFF 持仓拥挤度（`scripts/cftc_fetch.py`，✅ 免费·无需 key·中国可直连）
+
+- **源**:CFTC 官方年度历史文件——分类持仓 `fut_disagg_txt_YYYY.zip`(商品:黄金/白银/铜/WTI/天然气,投机代理 = **Managed Money**)、金融 TFF `fut_fin_txt_YYYY.zip`(外汇 EUR/USD·JPY·AUD 等/利率/股指,投机代理 = **Leveraged Funds**)。
+- **URL 模式**:`https://www.cftc.gov/files/dea/history/{fut_disagg_txt|fut_fin_txt}_YYYY.zip`(2026-09 实测 HTTP 200、中国环境可达;Socrata API 在部分网络被拦截,故用官方静态文件兜底)。
+- **输出指标**:投机净头寸 `Net = Long − Short`、净头寸/OI、多空比 L/S、52 周历史分位(→ 拥挤度等级:极度做多≥90% / 偏拥挤做空≤25% / 中性)、周环比 ΔNet / Δ净头寸-OI。
+- **品种别名**:`GOLD / XAU / SILVER / COPPER / WTI / CL / NATGAS / PLATINUM / PALLADIUM / EURUSD / JPYUSD / GBPUSD / AUDUSD / CADUSD / CHFUSD / NZDUSD / MXNUSD / US10Y / SP500 / NASDAQ / DJIA` 等(`--list` 列全)。
+- **缓存**:`scripts/.cftc_cache`(默认 3 天,自动叠加前一年扩充历史分位);`--from-file` 支持离线解析预下载的 `f_year.txt` / `FinFutYY.txt`。
+
+```bash
+python scripts/cftc_fetch.py --symbol GOLD --weeks 52      # 黄金投机净头寸 + 52周拥挤度分位
+python scripts/cftc_fetch.py --symbol EURUSD               # 欧元(杠杆基金净头寸)
+python scripts/cftc_fetch.py --symbol AUDUSD --json        # 澳元(交易 AUDJPY 联动)
+python scripts/cftc_fetch.py --symbol WTI --weeks 26
+python scripts/cftc_fetch.py --market-code 067651 --report disagg   # WTI 合约代码直查
+python scripts/cftc_fetch.py --from-file f_year.txt --market-code 088691 --report disagg  # 离线
+```
+
+> **研判用法**:净头寸/OI 处于 52 周 ≥90% 分位 = 投机极度做多(拥挤,警惕反转/轧空风险);≤10% = 极度做空(警惕空头回补轧空);中性区间跟随趋势。周环比 ΔNet 急剧放大常预示情绪极值点。
+
+#### 7.8.2 WGC / LBMA 黄金取数（`scripts/wgc_lbma_fetch.py`，✅ LBMA 现货代理免费·WGC 供需需手工）
+
+- **LBMA 金价代理(脚本可直连,免费,无需 key)**:`https://api.gold-api.com/price/XAU`(国际现货金,美元/盎司,紧贴 LBMA 定盘;2026-09 实测 HTTP 200)。`--symbol XAU|XAG` 取金/银。
+- **WGC 供需 / 央行购金 / LBMA 官方定盘**:gold.org / lbma.org.uk 无免费 JSON API(仅有图表/HTML/xlsx),故 `--manual` 输出标准化 WebFetch 手工取数指引(提取:全球/央行/ETF 季度需求吨数、LBMA Gold Price AM/PM),**绝不杜撰数字**。
+
+```bash
+python scripts/wgc_lbma_fetch.py --symbol XAU     # LBMA 金价现货代理(免费)
+python scripts/wgc_lbma_fetch.py --manual        # WGC/LBMA 手工取数指引(不联网)
+```
+
+#### 7.8.3 OPEC MOMR 原油报告（`scripts/opec_fetch.py`，⚠️ best-effort + 手工指引）
+
+- **可行性**:OPEC 官网(`opec.org`)MOMR 以 HTML/PDF 发布,**无免费 JSON API**;IEA MODS 为付费(€9200+)。本脚本"尽力而为"直连 OPEC 公开页抽取供需关键词,失败(网络/地域封锁,如本开发环境 `opec.org` 返回 403)则输出标准化 WebFetch 手工取数指引。
+- **重点提取字段**:全球石油需求增长预测(万桶/日,YoY)、非 OPEC 供应增长、OPEC 原油产量 / 减产履约、OPEC 一揽子油价(ORB)。IEA 免费历史替代:KAPSARC IEA 石油市场数据集(2001–2016)。
+
+```bash
+python scripts/opec_fetch.py            # 尝试直连 + 输出指引
+python scripts/opec_fetch.py --manual    # 仅打印手工取数指引(不联网)
+```
+
+#### 7.8.4 CME FedWatch 降息/加息概率（`scripts/fedwatch_csv.py`，⚠️ 无免费 API·手动导出桥接）
+
+- **可行性**:CME FedWatch Tool **没有免费脚本化 API**(需付费订阅 + OAuth),无法直连抓取。本脚本解析用户从 FedWatch Tool 网页**手动导出**的 CSV,把"会议日期 × 目标利率"概率矩阵转结构化文本/JSON(降息≥25bp / 按兵不动 / 加息≥25bp)。
+- **手动导出步骤**:打开 FedWatch Tool → 在概率表点击目标 FOMC 会议 → "Download / Export" 存 CSV → `python scripts/fedwatch_csv.py --csv <文件>`。
+
+```bash
+python scripts/fedwatch_csv.py --csv "./output/fedwatch_2026-09-03.csv"
+python scripts/fedwatch_csv.py --csv fedwatch.csv --json   # 机器可读
+```
+
+> 若持有 CME 付费 DataMine/FedWatch API 订阅,可改用官方接口直连;本脚本仅覆盖"免费手动导出"这一最可达路径。
+
+### 7.9 其他取数方式
+
+- **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key;**已脚本化**——用 `scripts/fred_fetch.py` 拉取 `DGS10`/`DFII10`/`T10YIE`/`T10Y2Y` 等宏观利率系列(详见第 7.10 节),key 已配置于 `scripts/.fred_key`。
 - **WebFetch**:本环境可直接对官方/聚合页面做结构化抓取(用于无 API 的源,如 WGC、OPEC 报告要点)。
 - **本地日报系统(可选)**:读取 `./daily_data.json`,作为滚动相关性分析的本地数据源。
 - **Python / Excel**:对取回数据自动更新 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
 
----
+### 7.10 FRED API（宏观 / 利率地基,key 已配置）
+
+- **Base**:`https://api.stlouisfed.org/fred`(FRED API v1,公开、需免费 key)。
+- **权威价值**:美元/利率方向研判的第一手权威源——10Y 名义利率 `DGS10`、10Y 实际利率(TIPS) `DFII10`(黄金定价第一锚)、10Y 盈亏平衡通胀 `T10YIE`、2s10s 利差 `T10Y2Y`(收益率曲线倒挂/衰退领先信号)、短端 `DGS3MO`/`DGS1`/`DGS2`/`DGS5`、长端 `DGS30`、联邦基金利率 `FEDFUNDS`/`DFF`——直接驱动"宏观利率地基"与外汇/黄金/原油的利率维度。
+- **Key 已配置**:`scripts/.fred_key`(本地文件,不进 zip、不进源码);读取优先级 `--api-key` > 环境变量 `FRED_API_KEY` > `scripts/.fred_key`。免费注册 https://fredaccount.stlouisfed.org/apikeys。
+- **预设(preset)↔ 系列**:
+
+  | preset | 系列 | 用途 |
+  |---|---|---|
+  | `nominal_10y` | `DGS10` | 10Y 名义利率 |
+  | `real_10y` | `DFII10` | 10Y 实际利率(黄金第一锚) |
+  | `breakeven_10y` | `T10YIE` | 10Y 盈亏平衡通胀 |
+  | `curve_2s10s` | `T10Y2Y` | 2s10s 利差(倒挂信号) |
+  | `short_end` | `DGS3MO`/`DGS1`/`DGS2`/`DGS5` | 短端收益率曲线 |
+  | `fed_funds` | `FEDFUNDS`/`DFF` | 政策利率锚 |
+  | `all_rates` | 上述全部 | 全曲线 + 实际/通胀/政策(默认推荐) |
+
+- **脚本**:`scripts/fred_fetch.py`(纯标准库);`--preset` 选预设、`--series` 自定义(逗号分隔)、`--last N` 最近 N 个观测、`--start/--end` 区间、`--out` 落盘(`.csv` 宽表 / `.json`);缺失值以 `.` 表示自动跳过;401=Key 无效、400/404=系列不存在、429=限速,均优雅降级。
+
+```bash
+# 全曲线 + 实际/通胀/政策利率(最近 30 期)
+python scripts/fred_fetch.py --preset all_rates --last 30 --out "./output/fred_rates.csv"
+# 黄金定价锚:名义/实际/盈亏平衡通胀(最近 60 期)
+python scripts/fred_fetch.py --series DGS10,DFII10,T10YIE --last 60
+```
 
 ## 8. 溯源纪律(强制)
 

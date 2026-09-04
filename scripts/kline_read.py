@@ -901,6 +901,16 @@ chart.setOption({backgroundColor:'#0b0e14',
 
 
 # ----------------------------- 入口 -----------------------------
+def _read_td_key():
+    """从脚本同目录 .td_key 读取 Twelve Data Key(本地便利,不进 zip)。"""
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".td_key")
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
 def run_fetch(args):
     """--fetch 模式:从权威渠道(Twelve Data)抓取 15min/1H/4H/1D/1W 并逐周期分析。
 
@@ -913,9 +923,9 @@ def run_fetch(args):
         print("✗ 未能加载 kline_fetch 模块(请确认与 kline_read.py 同目录)")
         return
 
-    apikey = args.api_key or os.environ.get("TWELVEDATA_API_KEY", "")
+    apikey = args.api_key or os.environ.get("TWELVEDATA_API_KEY", "") or _read_td_key()
     if not apikey:
-        print("✗ 未配置 Twelve Data API Key(环境变量 TWELVEDATA_API_KEY 或 --api-key)。")
+        print("✗ 未配置 Twelve Data API Key(环境变量 TWELVEDATA_API_KEY / --api-key / scripts/.td_key)。")
         print("  免费注册 https://twelvedata.com 获取;无 Key 时本环境无法联网获取 K 线。")
         print("  替代方案:由 MT4 导出 CSV 用 --csv,或直接在对话粘贴 OHLC 用 --text。")
         return
@@ -962,8 +972,8 @@ def main():
     ap.add_argument("--no-text", action="store_true", help="不打印文本解读")
     ap.add_argument("--fetch", action="store_true",
                     help="联网抓取 K 线(需 --symbol;默认取 15min/1H/4H/1D/1W,经 Twelve Data)")
-    ap.add_argument("--api-key", default=os.environ.get("TWELVEDATA_API_KEY", ""),
-                    help="Twelve Data API Key(或环境变量 TWELVEDATA_API_KEY)")
+    ap.add_argument("--api-key", default=os.environ.get("TWELVEDATA_API_KEY", "") or _read_td_key(),
+                    help="Twelve Data API Key(或环境变量 TWELVEDATA_API_KEY 或 scripts/.td_key)")
     args = ap.parse_args()
 
     if args.fetch:

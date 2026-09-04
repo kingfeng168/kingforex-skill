@@ -61,6 +61,16 @@ def normalize_symbol(sym):
     return s
 
 
+def _read_td_key():
+    """从脚本同目录 .td_key 读取 Twelve Data Key(本地便利,不进 zip)。"""
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".td_key")
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
 def fetch_one(symbol, interval, apikey, output_size=200):
     """抓取单周期 K 线。
 
@@ -68,7 +78,9 @@ def fetch_one(symbol, interval, apikey, output_size=200):
     失败:返回 (None, 原因字符串)。
     """
     if not apikey:
-        return None, "缺少 API Key(TWELVEDATA_API_KEY 或 --api-key)"
+        apikey = _read_td_key()
+    if not apikey:
+        return None, "缺少 API Key(TWELVEDATA_API_KEY 或 --api-key 或 scripts/.td_key)"
     sym = normalize_symbol(symbol)
     url = (f"{TD_BASE}?symbol={urllib.parse.quote(sym)}"
            f"&interval={urllib.parse.quote(interval)}"
@@ -124,8 +136,8 @@ def main():
     ap = argparse.ArgumentParser(description="K线抓取(Twelve Data 权威源)")
     ap.add_argument("--symbol", required=True, help="品种,如 USDJPY / XAUUSD / USOIL")
     ap.add_argument("--interval", default="1h", help="周期:15min/1h/4h/1day/1week")
-    ap.add_argument("--api-key", default=os.environ.get("TWELVEDATA_API_KEY", ""),
-                    help="Twelve Data API Key(或环境变量 TWELVEDATA_API_KEY)")
+    ap.add_argument("--api-key", default=os.environ.get("TWELVEDATA_API_KEY", "") or _read_td_key(),
+                    help="Twelve Data API Key(或环境变量 TWELVEDATA_API_KEY 或 scripts/.td_key)")
     ap.add_argument("--out", help="输出 CSV 路径(不指定则打印屏幕)")
     ap.add_argument("--json", action="store_true", help="以 JSON 打印")
     args = ap.parse_args()
