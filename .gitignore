@@ -1,15 +1,8 @@
 __pycache__/
-*.py[cod]
 *.pyc
-
-# 密钥：任何本地便利文件都不得提交
-.eia_key
 *.key
+.*_key
 .env
-
-# 打包产物
 *.zip
-
-# 系统文件
 .DS_Store
-Thumbs.db
+output/

@@ -400,6 +400,92 @@ def detect_gap(bars, n=5):
     return None
 
 
+def volume_concentration(bars, bins=20, n=60):
+    """成交密集区 / Volume Profile POC(POINT OF CONTROL)。
+    把最近 n 根 K 线的成交价格区间分成 bins,按成交量加权统计,返回成交量最大节点价格(POC)
+    以及高成交量区(HVN)上下沿。volume=0 时退化,用价格频次代替成交量并标注。
+    """
+    seg = bars[-min(n, len(bars)):]
+    if len(seg) < 10:
+        return None
+    lows = [b["l"] for b in seg]
+    highs = [b["h"] for b in seg]
+    vols = [b["v"] for b in seg]
+    lo, hi = min(lows), max(highs)
+    if lo == hi:
+        return None
+    width = (hi - lo) / bins
+    bucket = [0.0] * bins
+    for b, v in zip(seg, vols):
+        # 用 K 线中价代表本根价格,按成交量/频次加权
+        mid = (b["o"] + b["c"] + b["h"] + b["l"]) / 4.0
+        idx = int((mid - lo) / width)
+        idx = max(0, min(bins - 1, idx))
+        bucket[idx] += v if v > 0 else 1.0  # volume=0 时用频次兜底
+    max_idx = max(range(bins), key=lambda i: bucket[i])
+    poc = lo + (max_idx + 0.5) * width
+    # 高成交量区:≥70% POC 的连续桶
+    hvn_idxs = [i for i, x in enumerate(bucket) if x >= 0.70 * bucket[max_idx]]
+    hvn_lo = lo + min(hvn_idxs) * width
+    hvn_hi = lo + (max(hvn_idxs) + 1) * width
+    total_vol = sum(bucket)
+    value_area = sorted(range(bins), key=lambda i: -bucket[i])
+    va_vol = 0.0
+    va_idxs = []
+    for i in value_area:
+        va_vol += bucket[i]
+        va_idxs.append(i)
+        if va_vol >= 0.70 * total_vol:
+            break
+    va_lo = lo + min(va_idxs) * width
+    va_hi = lo + (max(va_idxs) + 1) * width
+    return {
+        "poc": round(poc, 5),
+        "hvn_low": round(hvn_lo, 5),
+        "hvn_high": round(hvn_hi, 5),
+        "va_low": round(va_lo, 5),
+        "va_high": round(va_hi, 5),
+        "note": ("成交量加权" if any(v > 0 for v in vols) else "成交量缺失,用价格频次替代"),
+    }
+
+
+def trend_line(bars, n=30):
+    """最近 n 根收盘价的线性回归趋势线。返回每根趋势值序列(长度=seg)以及斜率/角度。
+    角度>10°视为清晰趋势,<5°视为平缓/震荡。"""
+    seg = bars[-min(n, len(bars)):]
+    if len(seg) < 10:
+        return None
+    ys = [b["c"] for b in seg]
+    xs = list(range(len(ys)))
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    sxx = sum((x - mx) ** 2 for x in xs)
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    slope = 0.0 if sxx == 0 else sxy / sxx
+    intercept = my - slope * mx
+    line = [intercept + slope * x for x in xs]
+    # 角度:以首末价格差占首价比例近似,再用 atan
+    dx = len(ys) - 1
+    dy = line[-1] - line[0]
+    ang = math.degrees(math.atan(dy / (line[0] * dx))) if line[0] else 0.0
+    if ang > 10:
+        state = "上行趋势(>10°)"
+    elif ang < -10:
+        state = "下行趋势(<-10°)"
+    elif ang > 5:
+        state = "温和上行"
+    elif ang < -5:
+        state = "温和下行"
+    else:
+        state = "平缓/震荡"
+    return {
+        "slope": round(slope, 6),
+        "angle": round(ang, 2),
+        "state": state,
+        "last": round(line[-1], 5),
+        "values": [round(v, 5) for v in line],
+    }
+
+
 # ---- 经典日本蜡烛图形态(Murphy 第2章,补充 Morris 量化库) ----
 def detect_classic(bars, ctx, n=8):
     """识别十字星/纺锤/marubozu/刺透/乌云盖顶/启明星/黄昏星/红三兵/黑三鸦。
@@ -623,22 +709,27 @@ def analyze(bars, symbol="", tf="", lookback=120):
     c = [b["c"] for b in bars]
     v = [b["v"] for b in bars]
     last = bars[-1]
+    ema5 = ema(c, 5)
+    ema10 = ema(c, 10)
+    ema60 = ema(c, 60)
     ema20 = ema(c, 20)
     ema50 = ema(c, 50)
     a = atr(h, l, c, 14)
     ph, pl = pivots(h, l, window=5)
     struct = structure_from_pivots(ph, pl)
+    vol_con = volume_concentration(bars, bins=20, n=min(60, len(bars)))
+    tline = trend_line(bars, n=min(30, len(bars)))
 
-    # 趋势(EMA 排列 + 价格位置)
-    e20, e50, cl = ema20[-1], ema50[-1], c[-1]
-    if cl > e20 > e50:
-        ema_trend = "多头排列(价格>EMA20>EMA50)"
-    elif cl < e20 < e50:
-        ema_trend = "空头排列(价格<EMA20<EMA50)"
-    elif cl > e20 and e20 < e50:
-        ema_trend = "反弹(价格上穿 EMA20,但 EMA20<EMA50)"
-    elif cl < e20 and e20 > e50:
-        ema_trend = "回落(价格下穿 EMA20,但 EMA20>EMA50)"
+    # 趋势(EMA5/10/60 排列 + 价格位置)——用户指定常用均线 5/10/60
+    e5, e10, e60, cl = ema5[-1], ema10[-1], ema60[-1], c[-1]
+    if cl > e5 > e10 > e60:
+        ema_trend = "多头排列(价格>EMA5>EMA10>EMA60)"
+    elif cl < e5 < e10 < e60:
+        ema_trend = "空头排列(价格<EMA5<EMA10<EMA60)"
+    elif cl > e5 and e5 < e60:
+        ema_trend = "反弹(价格上穿 EMA5,但 EMA5<EMA60)"
+    elif cl < e5 and e5 > e60:
+        ema_trend = "回落(价格下穿 EMA5,但 EMA5>EMA60)"
     else:
         ema_trend = "均线纠缠(无明确排列)"
 
@@ -741,8 +832,9 @@ def analyze(bars, symbol="", tf="", lookback=120):
         "tf": tf,
         "bars_used": len(bars),
         "last_close": round(cl, 5),
-        "ema20": round(e20, 5),
-        "ema50": round(e50, 5),
+        "ema5": round(ema5[-1], 5) if ema5 else None,
+        "ema10": round(ema10[-1], 5) if ema10 else None,
+        "ema60": round(ema60[-1], 5) if ema60 else None,
         "atr14": round(a, 5),
         "trend_ema": ema_trend,
         "trend_context": trend_ctx,
@@ -751,6 +843,8 @@ def analyze(bars, symbol="", tf="", lookback=120):
         "resistance": [round(x, 5) for x in resist],
         "support": [round(x, 5) for x in support],
         "round_levels": [round(x, 5) for x in rnd_near],
+        "volume_concentration": vol_con,
+        "trend_line": tline,
         "patterns": pats,
         "pattern_note": pat_note,
         "horizon_note": horizon_note,
@@ -779,7 +873,7 @@ def to_text(r):
     lines.append(f"【K线盘面解读】{r['symbol'] or '—'} · {r['tf'] or '—'}  共 {r['bars_used']} 根")
     lines.append(f"最新收盘: {r['last_close']}   日期/序号: {r['last_bar']['t']}")
     lines.append("─" * 40)
-    lines.append(f"1) 趋势(EMA): {r['trend_ema']}   EMA20={r['ema20']}  EMA50={r['ema50']}")
+    lines.append(f"1) 趋势(EMA): {r['trend_ema']}   EMA5={r['ema5']}  EMA10={r['ema10']}  EMA60={r['ema60']}")
     ctx_map = {"up": "上升", "down": "下降", "range": "震荡", "unknown": "样本不足"}
     lines.append(f"2) 市场结构: {r['structure']}   [趋势背景: {ctx_map.get(r.get('trend_context','unknown'),'—')}"
                  f" ({r.get('trend_ctx_source','—')}) → 形态判定的前置条件]")

@@ -19,7 +19,7 @@
 
 | 数据源 | 权威性 | 关键内容 / 系列 ID | 更新频率 | 获取方式 |
 |--------|--------|--------------------|----------|----------|
-| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 已配置于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
+| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 由用户自备,存放于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
 | **美联储官网** `federalreserve.gov` | 官方一手 | SEP 经济预测摘要(含点阵图 Dot Plot)、FOMC 声明、鲍威尔发布会讲稿 | 每次会议 | 网页(经济预测摘要 / monetary policy) |
 | **CME FedWatch** `cmegroup.com`(FedWatch Tool) | 市场隐含 | 联邦基金期货隐含的加息/降息概率路径 | 实时 | **无免费 API(需付费订阅 + OAuth)**;用 `scripts/fedwatch_csv.py` 解析网页手动导出的概率 CSV(详见第 7.8 节) |
 | **克利夫兰联储 Inflation Expectations** `clevelandfed.org` | 官方一手 | 未来通胀预期模型 | 日/周 | 网页 |
@@ -64,7 +64,7 @@
 
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
-| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 已配置于 `scripts/.eia_key`);详见第 7.2 节 |
+| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 由用户自备,存放于 `scripts/.eia_key`);详见第 7.2 节 |
 | **IEA** `iea.org` | 国际组织一手 | 月度石油市场报告(MOMR 同类)、全球需求预测、库存 | 月 | 网页 / 报告(**付费 MODS**;免费历史替代 KAPSARC);`scripts/opec_fetch.py` 附指引 |
 | **OPEC** `opec.org` | 官方一手 | 月度石油市场报告、产量配额、执行率、闲置产能 | 月 | **脚本** `scripts/opec_fetch.py`(best-effort 直连 + WebFetch 手工指引,详见第 7.8 节);网页/报告 |
 | **API**(美国石油协会) | 行业一手 | 周度库存补充(公布早于 EIA) | 周二 | 网页 |
@@ -77,7 +77,7 @@
 | 数据源 | 权威性 | 关键内容 | 获取方式 |
 |--------|--------|----------|----------|
 | **TradingView** `tradingview.com` | 市场基准 | 跨市场图表模板、VIX、信用利差(ICE/BofA)、AUD/JPY、USD/CAD、USD/CNH | 网页 / 模板 |
-| **本地宏观日报系统(可选)** | 自用 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `./daily_data.json` |
+| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `./output/financial-dashboard/daily_data.json` |
 | **中国信贷脉冲** | 一手派生 | 社融增量 / GDP(PBOC),领先铜、澳元、人民币 3–6 个月 | PBOC 网页 / CEIC / Wind |
 
 ---
@@ -117,7 +117,7 @@ python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 ### 7.2 EIA v2 API（原油模块,已配置 key）
 
 - **Base**:`https://api.eia.gov/v2`,免费 key 注册 https://www.eia.gov/opendata/。
-- **Key 已配置**:key 已写入 `scripts/.eia_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装 skill 后需重设(见 SKILL.md 末尾"密钥安全")。
+- **Key 已配置**:key 由用户写入 `scripts/.eia_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装 skill 后需重设(见 SKILL.md 末尾"密钥安全")。
 - **权威价值**:周度原油/汽油/馏分油库存、WTI/Brent 现货价——原油模块(模块四)的核心一手源,直接驱动 EIA 周三库存事件交易研判。
 - **常用路由/系列(2026-08 实测校准)**:
   - `petroleum/sum/sndw`(周度供需,**强制需要 `frequency=weekly`**):原油库存 `WCRSTUS1`、汽油总库存 `WGTSTUS1`、馏分油库存 `WDISTUS1`(单位均为千桶)。
@@ -316,9 +316,9 @@ python scripts/fedwatch_csv.py --csv fedwatch.csv --json   # 机器可读
 
 ### 7.9 其他取数方式
 
-- **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key;**已脚本化**——用 `scripts/fred_fetch.py` 拉取 `DGS10`/`DFII10`/`T10YIE`/`T10Y2Y` 等宏观利率系列(详见第 7.10 节),key 已配置于 `scripts/.fred_key`。
+- **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key;**已脚本化**——用 `scripts/fred_fetch.py` 拉取 `DGS10`/`DFII10`/`T10YIE`/`T10Y2Y` 等宏观利率系列(详见第 7.10 节),key 由用户自备,存放于 `scripts/.fred_key`。
 - **WebFetch**:本环境可直接对官方/聚合页面做结构化抓取(用于无 API 的源,如 WGC、OPEC 报告要点)。
-- **本地日报系统(可选)**:读取 `./daily_data.json`,作为滚动相关性分析的本地数据源。
+- **用户日报系统**:读取 `./output/financial-dashboard/daily_data.json`,作为滚动相关性分析的本地数据源。
 - **Python / Excel**:对取回数据自动更新 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
 
 ### 7.10 FRED API（宏观 / 利率地基,key 已配置）
@@ -346,6 +346,150 @@ python scripts/fred_fetch.py --preset all_rates --last 30 --out "./output/fred_r
 # 黄金定价锚:名义/实际/盈亏平衡通胀(最近 60 期)
 python scripts/fred_fetch.py --series DGS10,DFII10,T10YIE --last 60
 ```
+
+### 7.11 金十数据 Jin10 MCP（实时行情 / 快讯 / 资讯 / 财经日历）
+
+- **定位**:中国大陆可直连的金融实时数据服务,覆盖**实时行情、K线、快讯、深度资讯、财经日历**——事件前中后监控市场反应的极佳源。通过标准 MCP(Mode士 Context Protocol)提供,客户端 `scripts/jin10_mcp.py`(纯标准库)或 WorkBuddy MCP 连接器均可调用。
+- **MCP 配置要点**(用户级 `~/.workbuddy/mcp.json`,Bearer Token 访问,**不进 zip**):
+  ```json
+  {
+    "mcpServers": {
+      "jin10": {
+        "serverUrl": "https://mcp.jin10.com/mcp",
+        "headers": { "Content-Type": "application/json", "Authorization": "Bearer <你的Token>" }
+      }
+    }
+  }
+  ```
+  Token 亦可存于 `scripts/.jin10_key`(脚本用,单行纯文本,不进 zip);读取优先级 `--token` > 环境变量 `JIN10_TOKEN` > `scripts/.jin10_key`。配置后需在连接器面板 **Trust** 该 server 才会加载。
+- **标准 MCP 流程**:`initialize` → `notifications/initialized` → `tools/list` / `resources/list` → `tools/call`(推荐协议版本 `2025-11-25`)。结果读取**优先 `result.structuredContent`**;`result.content` 仅作可读文本补充,不作主要机器解析来源。
+- **已验证工具**:
+  | 工具 | 参数 | 说明 |
+  |---|---|---|
+  | `get_quote` | `{ code }` | 指定品种实时行情 |
+  | `get_kline` | `{ code, time?, count? }` | 指定品种 K 线 |
+  | `list_flash` | `{ cursor? }` | 最新快讯列表 |
+  | `search_flash` | `{ keyword }` | 按关键词搜索快讯 |
+  | `list_news` | `{ cursor? }` | 最新资讯列表 |
+  | `search_news` | `{ keyword, cursor? }` | 按关键词搜索资讯 |
+  | `get_news` | `{ id }` | 单篇资讯详情 |
+  | `list_calendar` | `{}` | 财经日历数据 |
+  - **资源**:`quote://codes` —— 支持的报价品种代码列表(调用任何报价前先读它确认 `code`)。
+- **数据读取约定**:
+  - 报价 `get_quote`:`data.code / name / time / open / close / high / low / volume / ups_price / ups_percent`
+  - K线 `get_kline`:`data.code / name / klines[]`(每项 `close/high/low/open/time/volume`)
+  - 快讯/资讯列表:`data.items / data.next_cursor / data.has_more`
+  - 文章详情 `get_news`:`data.id / title / introduction / time / url / content`
+  - 财经日历 `list_calendar`:`data[]`(每项 `pub_time / star / title / previous / consensus / actual / revised / affect_txt`)
+- **推荐调用流程**:
+  - "某品种报价 / 最近 K线" → 先 `quote://codes` 确认 `code`,再 `get_quote` / `get_kline`
+  - "某主题最新快讯" → `search_flash({ keyword })`;顺序浏览最新流 → `list_flash({})` 后按 `next_cursor` 翻页
+  - "某主题深度文章" → `search_news({ keyword })` 或 `list_news({})`,拿到 `id` 后 `get_news({ id })`
+  - "财经日历 / 本周数据" → 直接 `list_calendar({})`
+- **常用品种代码**:`XAUUSD`(现货黄金)、`XAGUSD`(现货白银)、`USOIL`(WTI 原油)、`UKOIL`(布伦特原油)、`COPPER`(现货铜)、`USDJPY`、`EURUSD`、`USDCNH`。
+- **关键词示例**:黄金、原油、美联储、日元、通胀、非农、日本央行、欧佩克。
+- **分页**:列表统一请求 `cursor`,响应 `data.next_cursor` / `data.has_more`;**不要传 `offset`**(未声明参数)。
+- **调用限制**:每个用户每工具每日最多 1500 次(北京时间自然日,次日重置);超额返回「今日该工具调用次数已达上限,请明日再试」。
+- **错误处理**:`isError=true` 按业务错误处理;`JSON-RPC error` 按协议错误处理;不传未声明参数。
+- **脚本用法**(`scripts/jin10_mcp.py`,实测可用):
+  ```bash
+  python scripts/jin10_mcp.py quote XAUUSD                # 现货黄金实时报价
+  python scripts/jin10_mcp.py kline XAUUSD --count 20     # 黄金K线
+  python scripts/jin10_mcp.py flash --all                 # 最新快讯(全量翻页)
+  python scripts/jin10_mcp.py flash-search 美联储         # 美联储主题快讯
+  python scripts/jin10_mcp.py calendar                    # 财经日历
+  python scripts/jin10_mcp.py news-search 原油 --all      # 原油深度资讯
+  python scripts/jin10_mcp.py codes                       # 列出可用品种代码(资源 quote://codes)
+  ```
+
+### 7.12 iTick API（外汇 / 贵金属 / 期货 实时报价与 K 线,需 token）
+
+- **Base**:免费套餐 `https://api-free.itick.org`(限频 **5 次/分钟**);付费套餐 `https://api.itick.org`(用 `--base` 覆盖)。注意:免费 key **必须走 `api-free` 域名**,在 `api.itick.org` 用同样 token 会返 401。
+- **认证**:请求头 `token: <your_key>`(非 Bearer/X-API-Key)。key 存于 `scripts/.itick_key`(单行纯文本,不进 zip);读取优先级 `--api-key` > 环境变量 `ITICK_API_KEY` > `scripts/.itick_key`。
+- **权威价值**:覆盖**外汇、贵金属、期货、加密货币**的实时报价(spot)与 K 线历史——补 Twelve Data 之外的第二权威 K 线源,且**原生带外汇/贵金属/期货 quote**,特别适合事件前后报价监控与期货价差/期现结构分析(可同时取现货与期货 quote)。
+- **区域 region**:外汇/贵金属 = `GB`;期货/原油 = `US`(脚本已按 asset 默认)。
+- **kType 枚举**:`1m=0 / 5m=4 / 15m=5 / 30m=6 / 1h=7 / 2h=8 / 4h=9 / 1d=1 / 1w=2 / 1mo=3`。
+- **常用端点**:
+  - `GET /forex/quote?region=GB&code=EURUSD` → 报价 `s/p/o/h/l/v/ch/chp/t`
+  - `GET /forex/kline?region=GB&code=XAUUSD&kType=1&limit=3` → K 线列表 `{tu,c,t,v,h,l,o}`
+  - `GET /future/quote?region=US&code=GC2506`(黄金期货,如 COMEX GC)/ `GET /future/kline?...`
+- **脚本**:`scripts/itick_fetch.py`(纯标准库;`quote` 子命令 `--asset/--region/--code`、`kline` 子命令 `--kType/--limit/--et`;429 限速优雅提示"请稍候重试",约 13 秒后避让即可)。
+
+```bash
+# 现货黄金/欧元实时报价(GB 区域,默认)
+python scripts/itick_fetch.py quote --asset forex --code XAUUSD
+# 黄金期货 COMEX GC 报价(US 区域)
+python scripts/itick_fetch.py quote --asset future --region US --code GC2506
+# 取 XAUUSD 日线最近 3 根
+python scripts/itick_fetch.py kline --asset forex --code XAUUSD --kType 1d --limit 3
+```
+
+> ⚠️ 限频说明:免费套餐 **5 次/分钟**;连续抓取会撞 429,脚本会自动提示并建议间隔 ~13s 重试。批量演示请控制频率。
+
+### 7.13 goldprice.dev（现货金价,免费为主）
+
+- **Base**:`https://api.goldprice.dev`,端点 `/v1/prices?symbol=XAU-USD-SPOT`(亦支持 `/v1/spot/XAU-USD-SPOT`)。
+- **认证**:免费层**无需 key**;Free key 层用 `x-api-key: <key>`。key 存于 `scripts/.goldprice_key`(不进 zip);读取优先级 `--api-key` > 环境变量 `GOLDPRICE_API_KEY` > `scripts/.goldprice_key`。
+- **权威价值**:直接给**国际现货金价 XAU-USD-SPOT**(美元/盎司),作为期现结构分析的"现货锚"(与 iTick GC 期货、LBMA 代理交叉验证)。
+- **返回**:`{"XAU-USD-SPOT":{"price":...,"currency":"USD","unit":"troy_ounce",...}}`。
+- **脚本**:`scripts/goldprice_fetch.py`(纯标准库;返回现货价,或识别 Cloudflare 拦截返回 `cloudflare_block` 优雅降级)。
+
+```bash
+python scripts/goldprice_fetch.py            # 取现货金价(XAU-USD-SPOT)
+python scripts/goldprice_fetch.py --api-key $GOLDPRICE_API_KEY
+```
+
+> ⚠️ **Cloudflare 限制(仅部分环境)**:`api.goldprice.dev` 启用 Cloudflare "browser signature" 校验,**本构建沙箱出口被 Cloudflare 错误 1010 拦截(仅 TLS 指纹层面,非代码或 key 错误)**;在用户本机(常规浏览器网络)可正常返回。**切勿据此判 key 失效**——脚本识别 1010 后会输出 `cloudflare_block`(exit 0)并附透明说明,绝不杜撰价格。
+
+### 7.14 OilPriceAPI（WTI / Brent 原油 实时与历史,需 Token）
+
+- **Base**:`https://api.oilpriceapi.com`,**实际路径为 `/v1/`(非 `/v3/`)**。
+  - 实时(单一/多个):`GET /v1/prices/latest?by_code=WTI_USD`(逗号分隔可同时取多品种)
+  - 全部:`GET /v1/prices/all`
+  - 历史(近一年日度):`GET /v1/prices/past_year?commodity=WTI_USD&interval=daily&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
+- **认证**:请求头 `Authorization: Token <key>`(注意是 `Token`,不是 `Bearer`)。key 存于 `scripts/.oilprice_key`(不进 zip);读取优先级 `--api-key` > 环境变量 `OILPRICE_API_KEY` > `scripts/.oilprice_key`。
+- **代码 by_code**(snake_case):`WTI_USD` / `BRENT_CRUDE_USD` / `NATURAL_GAS_USD`。
+- **权威价值**:WTI / Brent 原油**实时与历史价**——直接服务原油模块(模块四)的 EIA 之外的第二价格源,且**原生给 WTI-Brent 价差**输入,是期货分析(跨品种价差 / 期限结构)的核心原油源。
+- **返回**:`{"status":"success","data":{"price":91.97,"currency":"USD","code":"WTI_USD","created_at":"...","unit":"barrel",...}}`(脚本 `_norm_row` 兼容 `price`/`value`)。
+- **脚本**:`scripts/oilprice_fetch.py`(纯标准库;`--code` 可多次/逗号分隔、`--history/--start/--end`、`--all`)。
+
+```bash
+# WTI 与 Brent 实时价
+python scripts/oilprice_fetch.py --code WTI_USD --code BRENT_CRUDE_USD
+# 全部品种
+python scripts/oilprice_fetch.py --all
+# WTI 历史近一年日度
+python scripts/oilprice_fetch.py --history --code WTI_USD --start 2026-01-01 --end 2026-09-01
+```
+
+> ⚠️ 注意路径与认证:早期文档曾误写 `/v3/` + `byCode`,经官方 Python SDK 源码核实实为 `/v1/` + `by_code` + `Authorization: Token`。脚本已按正路径实现(本环境实测 WTI≈92/Brent≈96 成功返回)。
+
+### 7.15 期货分析（期现结构 / 基差 / 期货价差 / 跨期 / 跨品种 WTI-Brent）
+
+把"期现结构分析"与"期货价差分析"固化成确定性计算,衔接原油模块(四)与黄金专项(三),服务于:Contango/Backwardation 研判、库存与远期曲线信号、WTI-Brent 跨品种价差 z-score(均值回归/裂解价差逻辑)、跨期价差(近月−远月)的展期信号。方法学与公式见 **`references/futures_analysis.md`**;计算由 **`scripts/futures_analysis.py`**(纯标准库)执行。
+
+- **期现结构 / 基差(basis)**:`basis = spot − futures`;基差率 `= basis / spot × 100%`;年化 carry `= (futures − spot)/spot × 365/days × 100%`;多档期货可算**相邻斜率(年化)**与整体 contango/backwardation 判定。
+- **期货价差**:
+  - 跨期(calendar):`spread = 近月 − 远月`(正值=back/contango 反向结构信号,负值=contango);
+  - 跨品种(如 WTI−Brent):可喂入历史序列 CSV 算 **z-score**(偏离均值几个标准差),辅助均值回归研判。
+- **一键拉取(pull)**:`pull --kind oil` 自动经 OilPriceAPI 算 WTI−Brent 价差;`pull --kind gold` 经 goldprice.dev 现货 + iTick GC 期货算期现结构(任一源缺失时返回 `_error:"partial"` 优雅降级,绝不杜撰)。
+- **脚本**:`scripts/futures_analysis.py`(子命令 `basis` / `spread` / `pull`)。
+
+```bash
+# 期现结构:现货 2400,两档期货(标签:价格:天数)
+python scripts/futures_analysis.py basis --spot 2400 --fut 2405:2410:30 --fut 2408:2425:120
+# 期货价差:跨品种 WTI-Brent
+python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98
+# 跨期(近月-远月)
+python scripts/futures_analysis.py spread --near 80 --far 85
+# 跨品种喂历史序列算 z-score(CSV: label,value)
+python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98 --series ./output/wti_brent_series.csv
+# 一键拉取(自动取数)
+python scripts/futures_analysis.py pull --kind oil
+python scripts/futures_analysis.py pull --kind gold
+```
+
+> ⚠️ 研判纪律:基差/价差仅供**结构信号**,须与库存(EIA)、持仓(CFTC)、利率(实际利率→carry 成本)三维印证;单看曲线结构不构成方向结论。goldprice.dev 在构建沙箱被 Cloudflare 拦时,`pull --kind gold` 会返回 partial,请在本机补全现货锚。
 
 ## 8. 溯源纪律(强制)
 
