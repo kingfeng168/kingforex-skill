@@ -19,7 +19,7 @@
 
 | 数据源 | 权威性 | 关键内容 / 系列 ID | 更新频率 | 获取方式 |
 |--------|--------|--------------------|----------|----------|
-| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 由用户自备,存放于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
+| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 已配置于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
 | **美联储官网** `federalreserve.gov` | 官方一手 | SEP 经济预测摘要(含点阵图 Dot Plot)、FOMC 声明、鲍威尔发布会讲稿 | 每次会议 | 网页(经济预测摘要 / monetary policy) |
 | **CME FedWatch** `cmegroup.com`(FedWatch Tool) | 市场隐含 | 联邦基金期货隐含的加息/降息概率路径 | 实时 | **无免费 API(需付费订阅 + OAuth)**;用 `scripts/fedwatch_csv.py` 解析网页手动导出的概率 CSV(详见第 7.8 节) |
 | **克利夫兰联储 Inflation Expectations** `clevelandfed.org` | 官方一手 | 未来通胀预期模型 | 日/周 | 网页 |
@@ -44,6 +44,7 @@
 | **BoJ 官网** `boj.or.jp` | 官方一手 | 政策利率、YCC/正常化进程、日元展望 | 每次会议 | 网页 |
 | **BoE 官网** `bankofengland.co.uk` | 官方一手 | 利率决议、通胀报告、前瞻指引 | 每次会议 | 网页 |
 | **PBOC / 外管局** `pbc.gov.cn` `safe.gov.cn` | 官方一手 | 人民币中间价、跨境资本流动 | 日频 | 网页 |
+| **qveris MCP 市场(金银/外汇/宏观)** `mcp.qveris.ai` | 聚合市场(按调用计费) | 金银现货 XAU/XAG(`commodity_price_api.rates.live`,**填补白银 XAGUSD 缺口**)、外汇日线(`alphavantage.fx_daily`,USDJPY/EURUSD/AUDJPY 等,**无 Twelve Data 的 429 限频**)、外汇实时(`eodhd`,`XXX.FOREX`)、FRED 全系列(`stlouisfed_fred.*`)、央行利率 | 实时/日 | **脚本** `scripts/qveris_fetch.py`(详见第 7.16 节;Bearer token 读 `~/.workbuddy/mcp.json`,单次 ~1–9.55 credits,额度 1000) |
 | **美元指数 DXY** | 市场基准 | ICE 美元指数(一篮子 6 货币) | 实时 | TradingView / Yahoo / 经纪商终端 |
 
 ---
@@ -57,6 +58,7 @@
 | **CFTC COT**(见第 2 节) | 官方一手 | 黄金投机净头寸(拥挤度) | 周 | 同第 2 节 |
 | **10Y TIPS**(FRED `DFII10`) | 官方一手 | 黄金定价第一锚(实际利率) | 日频 | 见第 1 节 |
 | **gold-api.com / 新浪**(实时行情源) | 聚合参考 | 伦敦金 XAU 现货价(gold-api 秒级)、新浪 hf_XAU **真实时**(含黄金 T+D gds_AUTD)——盘中金价与事件前后反应 | 实时 | **脚本** `scripts/live_market_fetch.py`(`gold` / `sina` 预设,无需 key) |
+| **qveris MCP 市场(金银现货)** `mcp.qveris.ai` | 聚合市场(计费) | **XAU + XAG 同接口现货价**(T.oz,含 bid/ask 代理,OTC 实时源)——**专门补 Twelve Data 免费层 XAGUSD=404 的白银缺口** | 实时 | **脚本** `scripts/qveris_fetch.py spot --symbol XAG\|XAU`(详见第 7.16 节;单次 ~9.55 credits) |
 
 ---
 
@@ -64,7 +66,7 @@
 
 | 数据源 | 权威性 | 关键内容 | 更新频率 | 获取方式 |
 |--------|--------|----------|----------|----------|
-| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 由用户自备,存放于 `scripts/.eia_key`);详见第 7.2 节 |
+| **EIA** `eia.gov`(v2 API) | 官方一手 | 周度库存(原油 `WCRSTUS1` / 汽油总 `WGTSTUS1` / 馏分油 `WDISTUS1`,千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶) | 周三(库存) | **脚本** `scripts/eia_fetch.py`(key 已配置于 `scripts/.eia_key`);详见第 7.2 节 |
 | **IEA** `iea.org` | 国际组织一手 | 月度石油市场报告(MOMR 同类)、全球需求预测、库存 | 月 | 网页 / 报告(**付费 MODS**;免费历史替代 KAPSARC);`scripts/opec_fetch.py` 附指引 |
 | **OPEC** `opec.org` | 官方一手 | 月度石油市场报告、产量配额、执行率、闲置产能 | 月 | **脚本** `scripts/opec_fetch.py`(best-effort 直连 + WebFetch 手工指引,详见第 7.8 节);网页/报告 |
 | **API**(美国石油协会) | 行业一手 | 周度库存补充(公布早于 EIA) | 周二 | 网页 |
@@ -77,7 +79,7 @@
 | 数据源 | 权威性 | 关键内容 | 获取方式 |
 |--------|--------|----------|----------|
 | **TradingView** `tradingview.com` | 市场基准 | 跨市场图表模板、VIX、信用利差(ICE/BofA)、AUD/JPY、USD/CAD、USD/CNH | 网页 / 模板 |
-| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `./output/financial-dashboard/daily_data.json` |
+| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `D:\workbuddy\输出文件\financial-dashboard\daily_data.json` |
 | **中国信贷脉冲** | 一手派生 | 社融增量 / GDP(PBOC),领先铜、澳元、人民币 3–6 个月 | PBOC 网页 / CEIC / Wind |
 
 ---
@@ -107,9 +109,9 @@
 
 ```bash
 # 拉美国政策利率最近 12 期
-python scripts/bis_fetch.py --dataflow WS_CBPOL --key "M.US.*" --last 12 --out "./output/bis_us_policy_rate.csv"
+python scripts/bis_fetch.py --dataflow WS_CBPOL --key "M.US.*" --last 12 --out "D:/workbuddy/输出文件/bis_us_policy_rate.csv"
 # 预设快捷:policy_rates / usd_rates / eer / global_liq
-python scripts/bis_fetch.py --preset policy_rates --last 24 --out "./output/bis_policy.csv"
+python scripts/bis_fetch.py --preset policy_rates --last 24 --out "D:/workbuddy/输出文件/bis_policy.csv"
 python scripts/bis_fetch.py --list          # 列出全部数据集
 python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 ```
@@ -117,7 +119,7 @@ python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 ### 7.2 EIA v2 API（原油模块,已配置 key）
 
 - **Base**:`https://api.eia.gov/v2`,免费 key 注册 https://www.eia.gov/opendata/。
-- **Key 已配置**:key 由用户写入 `scripts/.eia_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装 skill 后需重设(见 SKILL.md 末尾"密钥安全")。
+- **Key 已配置**:key 已写入 `scripts/.eia_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装 skill 后需重设(见 SKILL.md 末尾"密钥安全")。
 - **权威价值**:周度原油/汽油/馏分油库存、WTI/Brent 现货价——原油模块(模块四)的核心一手源,直接驱动 EIA 周三库存事件交易研判。
 - **常用路由/系列(2026-08 实测校准)**:
   - `petroleum/sum/sndw`(周度供需,**强制需要 `frequency=weekly`**):原油库存 `WCRSTUS1`、汽油总库存 `WGTSTUS1`、馏分油库存 `WDISTUS1`(单位均为千桶)。
@@ -127,14 +129,14 @@ python scripts/bis_fetch.py --dims WS_XRU   # 查维度顺序
 
 ```bash
 # 美国商业原油库存最近 12 周(无需再传 key,自动读 .eia_key)
-python scripts/eia_fetch.py --preset crude_stocks --last 12 --out "./output/eia_crude_stocks.csv"
+python scripts/eia_fetch.py --preset crude_stocks --last 12 --out "D:/workbuddy/输出文件/eia_crude_stocks.csv"
 # 汽油总库存 / 馏分油库存 / WTI / Brent
 python scripts/eia_fetch.py --preset gas_stocks --last 12
 python scripts/eia_fetch.py --preset dist_stocks --last 12
 python scripts/eia_fetch.py --preset wti --last 30
 python scripts/eia_fetch.py --preset brent --last 30
 # 直接指定路由+系列(sndw 必须带 --freq weekly)
-python scripts/eia_fetch.py --route petroleum/sum/sndw --series WCRSTUS1 --freq weekly --last 24 --out "./output/eia_crude.csv"
+python scripts/eia_fetch.py --route petroleum/sum/sndw --series WCRSTUS1 --freq weekly --last 24 --out "D:/workbuddy/输出文件/eia_crude.csv"
 ```
 
 ### 7.3 IMF SDMX 3.0 API（宏观 / 外汇,需联网验证）
@@ -150,7 +152,7 @@ python scripts/imf_fetch.py --list
 # 查 COFER 维度顺序,再写 key
 python scripts/imf_fetch.py --structure COFER
 # 拉全球美元储备份额相关序列(示例 key,以 --structure 为准)
-python scripts/imf_fetch.py --preset cofer --format csv --out "./output/imf_cofer.csv"
+python scripts/imf_fetch.py --preset cofer --format csv --out "D:/workbuddy/输出文件/imf_cofer.csv"
 ```
 
 > ⚠️ 透明说明:脚本编写时,构建环境对 `api.imf.org` 的 SDMX 3.0 端点返回 502/404(同一环境对 BIS 端点返回 200,判定为 IMF 服务端临时不可达或路径调整)。脚本严格按 SDMX 3.0 标准与用户基址编写;请本地用 `--list` 确认可达后再正式取数,路径变更时用 `--base` 指向可用节点。
@@ -164,7 +166,7 @@ python scripts/imf_fetch.py --preset cofer --format csv --out "./output/imf_cofe
 
 ```bash
 # 多国实际利率最近 5 期(套息/IRP 利差)
-python scripts/worldbank_fetch.py --preset real_rate --country "US;CN;JP;EU" --mrnev 5 --out "./output/wb_realrate.csv"
+python scripts/worldbank_fetch.py --preset real_rate --country "US;CN;JP;EU" --mrnev 5 --out "D:/workbuddy/输出文件/wb_realrate.csv"
 # 中美经常账户占 GDP(2015–2025,中期汇率方向)
 python scripts/worldbank_fetch.py --preset current_account_pct --country "US;CN" --date 2015:2025
 # 发现指标 ID / 国家码
@@ -185,7 +187,7 @@ python scripts/worldbank_fetch.py --list-countries
 # 今日经济日历(含 EIA 原油库存、USD 影响)
 python scripts/quantgist_fetch.py --preset calendar --api-key $QUANTGIST_API_KEY
 # 地缘/油价情报(最小影响分 0.6,affected_assets 含 GLD/XAUUSD/CL)
-python scripts/quantgist_fetch.py --preset news_radar --min-impact 0.6 --api-key $QUANTGIST_API_KEY --out "./output/qg_radar.csv"
+python scripts/quantgist_fetch.py --preset news_radar --min-impact 0.6 --api-key $QUANTGIST_API_KEY --out "D:/workbuddy/输出文件/qg_radar.csv"
 # 商品 ETF 快照(金价 GLD / 油价 USO 代理)
 python scripts/quantgist_fetch.py --preset commodities --api-key $QUANTGIST_API_KEY
 ```
@@ -206,7 +208,7 @@ python scripts/quantgist_fetch.py --preset commodities --api-key $QUANTGIST_API_
 
 ```bash
 # ECB 参考汇率(USD→CNY/EUR/JPY)
-python scripts/live_market_fetch.py --preset fx_ref --from USD --to CNY,EUR,JPY --out "./output/fx_ref.csv"
+python scripts/live_market_fetch.py --preset fx_ref --from USD --to CNY,EUR,JPY --out "D:/workbuddy/输出文件/fx_ref.csv"
 # 伦敦金现货价
 python scripts/live_market_fetch.py --preset gold
 # 新浪真实时(USDCNY + 伦敦金)
@@ -231,6 +233,7 @@ python scripts/live_market_fetch.py --preset all --json
 | **MT4 导出 CSV** | ✅ **推荐主输入(路径①)** | 文件→另存为,或"数据窗口"右键导出;脚本自动识别 `Date,Time,O,H,L,C,V` 表头与制表符/逗号分隔 |
 | 粘贴 OHLC 文本 | ✅ 支持(路径①) | `--text "date,o,h,l,c"` 多行,临时快速解读 |
 | **Twelve Data** `api.twelvedata.com` | ✅ **权威网络源(路径②)** | 中国大陆可直连,免费注册 https://twelvedata.com 取 Key;覆盖外汇/黄金/原油与 15min/1h/4h/1day/1week;经 `kline_fetch.py` 抓取,`kline_read.py --fetch` 逐周期分析 |
+| **qveris MCP 市场** `mcp.qveris.ai` | ✅ **权威网络源补充(路径②备选)** | 中国大陆可直连,Bearer token 读 `~/.workbuddy/mcp.json`;外汇日线 `alphavantage.fx_daily`(USDJPY/EURUSD/AUDJPY 等,**1 credit/次,无 Twelve Data 429 限频**)、金银现货 `commodity_price_api.rates.live`(**补 XAGUSD 缺口**);`qveris_fetch.py fx --csv` 输出标准 `Date,Open,High,Low,Close` 直接喂 `kline_read.py`;详见第 7.16 节 |
 | 新浪旧接口 `CN_FX_Data` / `CN_MarketDataService` | ❌ 失效 | 接口已下线 |
 | 东方财富 `push2his` | ❌ 被墙/超时 | 本环境不可达 |
 | Yahoo `query1.finance.yahoo.com` | ❌ HTTP 403 | 需 OAuth,已关闭匿名访问 |
@@ -243,16 +246,16 @@ python scripts/live_market_fetch.py --preset all --json
 
 ```bash
 # 路径①:CSV 输入 + 输出 JSON/HTML 标注图
-python scripts/kline_read.py --csv "./output/EURUSD_H1.csv" \
-    --symbol EURUSD --tf H1 --last 120 --json --html --out "./output"
+python scripts/kline_read.py --csv "D:/workbuddy/输出文件/EURUSD_H1.csv" \
+    --symbol EURUSD --tf H1 --last 120 --json --html --out "D:/workbuddy/输出文件"
 # 路径①:粘贴文本快速解读
 python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880" --symbol EURUSD --tf D1
 
 # 路径②:未发K线时,联网抓取 15min/1H/4H/1D/1W 并逐周期分析(Twelve Data 权威源)
 python scripts/kline_read.py --fetch --symbol USDJPY --api-key <TWELVEDATA_KEY>
-python scripts/kline_read.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --json --out "./output"
+python scripts/kline_read.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --json --out "D:/workbuddy/输出文件"
 # 单源单周期抓取(可输出 CSV)
-python scripts/kline_fetch.py --symbol USOIL --interval 1h --api-key <TWELVEDATA_KEY> --out "./output/usoil_1h.csv"
+python scripts/kline_fetch.py --symbol USOIL --interval 1h --api-key <TWELVEDATA_KEY> --out "D:/workbuddy/输出文件/usoil_1h.csv"
 ```
 
 > **无 Key 降级提示**:若未配置 Twelve Data Key(环境变量 `TWELVEDATA_API_KEY` 或 `--api-key`),`--fetch` 会明确提示"未配置 Key,无法联网获取 K 线",并给出 --csv / --text 替代方案,**绝不编造价格**。Key 由用户自行在 twelvedata.com 免费注册,**不硬编码进脚本与 zip**。
@@ -308,7 +311,7 @@ python scripts/opec_fetch.py --manual    # 仅打印手工取数指引(不联网
 - **手动导出步骤**:打开 FedWatch Tool → 在概率表点击目标 FOMC 会议 → "Download / Export" 存 CSV → `python scripts/fedwatch_csv.py --csv <文件>`。
 
 ```bash
-python scripts/fedwatch_csv.py --csv "./output/fedwatch_2026-09-03.csv"
+python scripts/fedwatch_csv.py --csv "D:/workbuddy/输出文件/fedwatch_2026-09-03.csv"
 python scripts/fedwatch_csv.py --csv fedwatch.csv --json   # 机器可读
 ```
 
@@ -316,9 +319,9 @@ python scripts/fedwatch_csv.py --csv fedwatch.csv --json   # 机器可读
 
 ### 7.9 其他取数方式
 
-- **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key;**已脚本化**——用 `scripts/fred_fetch.py` 拉取 `DGS10`/`DFII10`/`T10YIE`/`T10Y2Y` 等宏观利率系列(详见第 7.10 节),key 由用户自备,存放于 `scripts/.fred_key`。
+- **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key;**已脚本化**——用 `scripts/fred_fetch.py` 拉取 `DGS10`/`DFII10`/`T10YIE`/`T10Y2Y` 等宏观利率系列(详见第 7.10 节),key 已配置于 `scripts/.fred_key`。
 - **WebFetch**:本环境可直接对官方/聚合页面做结构化抓取(用于无 API 的源,如 WGC、OPEC 报告要点)。
-- **用户日报系统**:读取 `./output/financial-dashboard/daily_data.json`,作为滚动相关性分析的本地数据源。
+- **用户日报系统**:读取 `D:\workbuddy\输出文件\financial-dashboard\daily_data.json`,作为滚动相关性分析的本地数据源。
 - **Python / Excel**:对取回数据自动更新 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
 
 ### 7.10 FRED API（宏观 / 利率地基,key 已配置）
@@ -342,7 +345,7 @@ python scripts/fedwatch_csv.py --csv fedwatch.csv --json   # 机器可读
 
 ```bash
 # 全曲线 + 实际/通胀/政策利率(最近 30 期)
-python scripts/fred_fetch.py --preset all_rates --last 30 --out "./output/fred_rates.csv"
+python scripts/fred_fetch.py --preset all_rates --last 30 --out "D:/workbuddy/输出文件/fred_rates.csv"
 # 黄金定价锚:名义/实际/盈亏平衡通胀(最近 60 期)
 python scripts/fred_fetch.py --series DGS10,DFII10,T10YIE --last 60
 ```
@@ -483,13 +486,61 @@ python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98
 # 跨期(近月-远月)
 python scripts/futures_analysis.py spread --near 80 --far 85
 # 跨品种喂历史序列算 z-score(CSV: label,value)
-python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98 --series ./output/wti_brent_series.csv
+python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98 --series D:/workbuddy/输出文件/wti_brent_series.csv
 # 一键拉取(自动取数)
 python scripts/futures_analysis.py pull --kind oil
 python scripts/futures_analysis.py pull --kind gold
 ```
 
 > ⚠️ 研判纪律:基差/价差仅供**结构信号**,须与库存(EIA)、持仓(CFTC)、利率(实际利率→carry 成本)三维印证;单看曲线结构不构成方向结论。goldprice.dev 在构建沙箱被 Cloudflare 拦时,`pull --kind gold` 会返回 partial,请在本机补全现货锚。
+
+### 7.16 qveris MCP 金融数据市场(金银/外汇/宏观,按调用计费)
+
+- **定位**:qveris 是金融数据**工具市场(MCP 网关)**,本身不是数据源,而是把 Alpha Vantage / EODHD / CommodityPriceAPI / FRED 等第三方权威源聚合成可经 MCP 调用的工具。中国大陆可直连(`https://mcp.qveris.ai/mcp`),Bearer Token 鉴权。
+- **价值(对本技能)**:① **填补白银缺口**——Twelve Data 免费层 `XAGUSD=404`,qveris `commodity_price_api.rates.live` 直接给 XAU+XAG 现货价;② **规避限频**——Twelve Data 免费层 ~8 次/分撞 429,qveris 外汇日线 `alphavantage.fx_daily` 单次仅 1 credit、无分钟级限频;③ **多源冗余**——FRED / 央行利率等可作为既有脚本的交叉验证源。
+- **计费**:按 `call` 计费,成本随工具而异(2026-09 实测:金银现货 `commodity_price_api.rates.live` ≈ **9.55 credits/次**、外汇日线 `alphavantage.fx_daily` ≈ **1 credit/次**、外汇实时 `eodhd` ≈ 2.81 credits/次)。账户初始额度 **1000 credits**;用尽前用 `qveris_fetch.py credits` 查余量。免费动作:`discover` / `inspect` / `probe` 不计费。
+- **MCP 配置**(用户级 `~/.workbuddy/mcp.json`,**不进 zip**):
+  ```json
+  {
+    "mcpServers": {
+      "qveris": {
+        "type": "http",
+        "url": "https://mcp.qveris.ai/mcp",
+        "headers": { "Authorization": "Bearer <你的Token>" }
+      }
+    }
+  }
+  ```
+  Token 亦可存于 `scripts/.qveris_key`(单行纯文本,不进 zip);`qveris_fetch.py` 读取优先级:`--api-key` > 环境变量 `QVERIS_API_KEY` > `scripts/.qveris_key` > `~/.workbuddy/mcp.json`(自动解析 qveris 的 Authorization)。**切勿明文外泄 Token**。
+- **调用契约(关键,与 Jin10 不同)**:
+  - 标准流程:`initialize` → `notifications/initialized` → **`discover`(自然语言找工具)** → `inspect`(参数/计费) → `probe`(**免費报价**) → **`call`(计费执行)**。
+  - `call` 必须带三件套:`tool_id` + `search_id` + `params_to_tool`(真实参数包,路径参数如 `symbol` 放其内)。
+  - ⚠️ **`search_id` 在 `discover` 结果的顶层**(非工具层级);`call` 的 `search_id` 必须来自同一次 `discover`。
+  - qveris 大结果会被截断:`result.data`(小)或 `result.truncated_content`(JSON 字符串)或 `result.full_content_file_url`(完整文件);`qveris_fetch.py` 已统一处理。
+- **已验证工具(tool_id 可能随版本微调,脚本优先 discover 动态获取)**:
+  | 用途 | tool_id(2026-09 实测) | 关键参数 | 成本 |
+  |---|---|---|---|
+  | 金银现货 | `commodity_price_api.rates.live.retrieve.v2.46f86b4e` | `symbol=xau\|xag` | ~9.55 |
+  | 外汇日线 | `alphavantage.fx_daily.retrieve.v1.7aca3c4a` | `function=FX_DAILY`,`from_symbol`,`to_symbol`,`outputsize=compact\|full` | ~1 |
+  | 外汇实时 | `eodhd.live_data.real_time.retrieve.v1.b60a4285` | `symbol=USDJPY.FOREX` | ~2.81 |
+  | FRED 宏观 | `stlouisfed_fred.*`(discover 按系列取) | `series_id` 等 | 视工具 |
+- **脚本**:`scripts/qveris_fetch.py`(纯标准库,无需 pip);高层命令 `spot` / `fx` / `fred`,底层 `discover` / `inspect` / `probe` / `call` / `credits` / `tools`。
+
+```bash
+# 金银现货(补白银缺口):XAG / XAU
+python scripts/qveris_fetch.py spot --symbol XAG
+python scripts/qveris_fetch.py spot --symbol XAU
+# 外汇日线 -> 直接产 CSV 喂 kline_read.py(AUDJPY/USDJPY/EURUSD)
+python scripts/qveris_fetch.py fx --symbol AUDJPY --kind daily --last 120 --csv "D:/workbuddy/输出文件/AUDJPY_qveris.csv"
+python scripts/qveris_fetch.py fx --symbol USDJPY --kind daily --last 20
+# 外汇实时报价
+python scripts/qveris_fetch.py fx --symbol EURUSD --kind live
+# 自然语言找工具 + 查余量
+python scripts/qveris_fetch.py discover --query "gold silver spot price XAU XAG"
+python scripts/qveris_fetch.py credits
+```
+
+> ⚠️ **取数铁律(与本技能一致)**:任一 `call` 失败/超时/返回空,脚本仅报告原因并跳过该品种,**绝不编造、估算或凭记忆生成任何价格**。qveris 按调用计费,批量扫描前先用 `credits` 确认余量;不建议对全部品种无差别高频 `call`(可与免费源 live_market_fetch.py / Twelve Data 分层搭配)。
 
 ## 8. 溯源纪律(强制)
 

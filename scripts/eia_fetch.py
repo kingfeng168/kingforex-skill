@@ -11,11 +11,11 @@ EIA v2 API 需免费 key —— 注册 https://www.eia.gov/opendata/ 获取；
 用法示例:
   # 美国商业原油库存最近 12 周（预设）
   python eia_fetch.py --preset crude_stocks --api-key YOURKEY --last 12 \
-      --out "./output/eia_crude_stocks.csv"
+      --out "D:/workbuddy/输出文件/eia_crude_stocks.csv"
 
   # 直接指定路由 + 系列(sndw 路由必须带 --freq weekly)
   python eia_fetch.py --route petroleum/sum/sndw --series WCRSTUS1 --freq weekly \
-      --api-key YOURKEY --last 24 --out "./output/eia_crude.csv"
+      --api-key YOURKEY --last 24 --out "D:/workbuddy/输出文件/eia_crude.csv"
 
   # 发现某路由下全部可用 series（找对的 ID，sndw 需 --freq）
   python eia_fetch.py --route petroleum/sum/sndw --api-key YOURKEY --freq weekly --list-series

@@ -14,7 +14,7 @@ kline_fetch.py — 从权威渠道获取 K 线(OHLCV)历史数据 (kingforex-ski
 
 用法:
   python kline_fetch.py --symbol USDJPY --interval 1h --api-key <KEY>
-  python kline_fetch.py --symbol XAUUSD --api-key <KEY> --out "./output/xauusd.csv"
+  python kline_fetch.py --symbol XAUUSD --api-key <KEY> --out "D:/workbuddy/输出文件/xauusd.csv"
   python kline_fetch.py --symbol USOIL --json
 """
 

@@ -6,8 +6,8 @@ BIS SDMX v2 Stats API 拉取脚本（仅依赖 Python 标准库，无需 pip 安
 用法示例:
   python bis_fetch.py --list
   python bis_fetch.py --dims WS_XRU
-  python bis_fetch.py --dataflow WS_CBPOL --key "M.US.*" --last 12 --out "./output/bis_us_policy.csv"
-  python bis_fetch.py --preset policy_rates --last 24 --out "./output/bis_policy.csv"
+  python bis_fetch.py --dataflow WS_CBPOL --key "M.US.*" --last 12 --out "D:/workbuddy/输出文件/bis_us_policy.csv"
+  python bis_fetch.py --preset policy_rates --last 24 --out "D:/workbuddy/输出文件/bis_policy.csv"
 
 注: JSON 返回为 SDMX 编码压缩格式（需解码），日常优先用 CSV。
 """

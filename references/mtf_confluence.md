@@ -84,7 +84,7 @@
 ```bash
 # 本地 CSV(每周期一个文件,已用 kline_read 验证的格式)
 python scripts/mtf_confluence.py --csv-w W.csv --csv-d D.csv --csv-h1 H1.csv \
-    --symbol USDJPY --html --json --out "./output"
+    --symbol USDJPY --html --json --out "D:/workbuddy/输出文件"
 
 # 粘贴文本(每周期一段 OHLC,列:date,o,h,l,c[,v])
 python scripts/mtf_confluence.py --text-w "..." --text-d "..." --text-h1 "..." \

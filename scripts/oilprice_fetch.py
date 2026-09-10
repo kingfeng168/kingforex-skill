@@ -17,7 +17,7 @@ OilPriceAPI 油价拉取脚本（仅依赖 Python 标准库,无需 pip 安装）
   python oilprice_fetch.py --code WTI_USD
   python oilprice_fetch.py --code WTI_USD --code BRENT_CRUDE_USD      # 多品种(批量,逗号或多次)
   python oilprice_fetch.py --code WTI_USD --history --start 2026-08-01 --end 2026-09-04
-  python oilprice_fetch.py --code BRENT_CRUDE_USD --out "./output/brent.json"
+  python oilprice_fetch.py --code BRENT_CRUDE_USD --out "D:/workbuddy/输出文件/brent.json"
 
 key 读取优先级: --api-key > 环境变量 OILPRICEAPI_KEY > scripts/.oilprice_key(本地,不进 zip)。
 """

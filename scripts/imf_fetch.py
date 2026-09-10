@@ -21,10 +21,10 @@ IMF SDMX 3.0 Stats API 拉取脚本（仅依赖 Python 标准库，无需 pip �
 
   # 拉 COFER 世界美元储备份额相关序列(示例 key,需以 --structure 确认为准)
   python imf_fetch.py --flow COFER --key "W00.AEZF.USD" --format csv --start 2020 \
-      --out "./output/imf_cofer_usd.csv"
+      --out "D:/workbuddy/输出文件/imf_cofer_usd.csv"
 
   # 预设快捷:cofer / ifs / bop / dot
-  python imf_fetch.py --preset cofer --format csv --out "./output/imf_cofer.csv"
+  python imf_fetch.py --preset cofer --format csv --out "D:/workbuddy/输出文件/imf_cofer.csv"
 """
 import urllib.request
 import urllib.parse

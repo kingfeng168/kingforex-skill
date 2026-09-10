@@ -18,8 +18,8 @@ live_market_fetch.py — 实时行情聚合取数脚本（kingforex-skill 内置
 
 用法示例：
   python scripts/live_market_fetch.py --preset fx_ref --from USD --to CNY,EUR,JPY
-  python scripts/live_market_fetch.py --preset gold --out "./output/gold.csv"
-  python scripts/live_market_fetch.py --preset ust_yield --out "./output/ust.csv"
+  python scripts/live_market_fetch.py --preset gold --out "D:/workbuddy/输出文件/gold.csv"
+  python scripts/live_market_fetch.py --preset ust_yield --out "D:/workbuddy/输出文件/ust.csv"
   python scripts/live_market_fetch.py --preset fx_all
   python scripts/live_market_fetch.py --preset sina --list USDCNY,hf_XAU
   python scripts/live_market_fetch.py --preset all --json

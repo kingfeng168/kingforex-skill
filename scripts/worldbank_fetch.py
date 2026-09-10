@@ -19,7 +19,7 @@ Base: https://api.worldbank.org/v2  (公开、无需 key)
 用法示例:
   python worldbank_fetch.py --list-indicators "inflation"
   python worldbank_fetch.py --list-countries
-  python worldbank_fetch.py --preset real_rate --country US;CN;JP;EU --mrnev 5 --out "./output/wb_realrate.csv"
+  python worldbank_fetch.py --preset real_rate --country US;CN;JP;EU --mrnev 5 --out "D:/workbuddy/输出文件/wb_realrate.csv"
   python worldbank_fetch.py --preset current_account_pct --country US;CN --date 2015:2025
   python worldbank_fetch.py --indicator NY.GDP.MKTP.KD.ZG --country WLD --mrnev 10
 """

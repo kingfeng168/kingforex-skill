@@ -68,7 +68,7 @@ python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98
 # 跨期(近月 2410 / 远月 2425)
 python scripts/futures_analysis.py spread --near M1:2410 --far M2:2425
 # 算 z-score(历史价差文件)
-python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98 --series "./output/wti_brent_spread_hist.csv"
+python scripts/futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98 --series "D:/workbuddy/输出文件/wti_brent_spread_hist.csv"
 # 直连实时:OilPriceAPI 取 WTI/Brent 算跨品种价差
 python scripts/futures_analysis.py pull --kind oil
 ```
