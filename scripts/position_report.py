@@ -325,17 +325,16 @@ def render_html_report(args, data, kline_data, metrics_daily, metrics_h1,
         "<tr><td>1小时</td><td class='green'>LONG</td><td>中</td><td>价格上穿 EMA5 但 EMA5 < EMA60</td><td>反弹中（顺势回踩）</td></tr>"
     )
 
-    # 关键位
+    # 关键位（表格形式，v1.4.3）
     key_levels = (
-        "<div class='key-level resistance'><div class='price'>114.93</div><div class='role'>阻力 · 周/日/1H 共振 9.0</div></div>"
-        f"<div class='key-level resistance'><div class='price'>{args.sl}</div><div class='role'>止损 SL（原）</div></div>"
-        "<div class='key-level resistance'><div class='price'>111.50</div><div class='role'>1H 阻力 · 反弹上限</div></div>"
-        f"<div class='key-level current'><div class='price' style='color:#f1c40f'>{current_price}</div><div class='role'>⚡ 当前价</div></div>"
-        "<div class='key-level entry'><div class='price'>111.30</div><div class='role'>🎯 建议新 SL</div></div>"
-        "<div class='key-level support'><div class='price'>110.07</div><div class='role'>支撑 · 三周期 5.0</div></div>"
-        f"<div class='key-level support'><div class='price'>{args.tp}</div><div class='role'>止盈 TP</div></div>"
-        "<div class='key-level support'><div class='price'>109.24</div><div class='role'>支撑 · 周+日 4.0</div></div>"
-        "<div class='key-level support'><div class='price'>105.00</div><div class='role'>长期周线支撑</div></div>"
+        f"<tr><td class='white'>{symbol}</td><td class='white'>{current_price}</td><td class='yellow'>当前</td><td>实时报价，所有关键位的参照基准</td></tr>"
+        "<tr><td class='white'>日线EMA20</td><td>112.36</td><td class='red'>阻力</td><td>反弹受阻、空单观察位；收盘站上则减仓</td></tr>"
+        "<tr><td class='white'>1H EMA60</td><td>111.50</td><td class='red'>阻力</td><td>短期反弹上限；突破则空头结构松动</td></tr>"
+        f"<tr><td class='white'>原 SL</td><td class='red'>{args.sl}</td><td class='red'>止损</td><td>日线结构外止损；剩余仓位应下移</td></tr>"
+        "<tr><td class='white'>建议新 SL</td><td class='red'>111.30</td><td class='red'>止损</td><td>日线EMA10上方外扩；剩余风险可控</td></tr>"
+        "<tr><td class='white'>TP1</td><td class='green'>110.07</td><td class='green'>支撑</td><td>三周期强支撑，触发后平50%剩余仓位</td></tr>"
+        f"<tr><td class='white'>原 TP</td><td class='green'>{args.tp}</td><td class='green'>止盈</td><td>最终目标；剩余仓位分批收尾</td></tr>"
+        "<tr><td class='white'>周线支撑</td><td>109.24</td><td class='green'>支撑</td><td>周+日共振支撑，趋势尾部观察位</td></tr>"
     )
 
     # 量化指标（解析 quant_metrics 输出）
@@ -499,6 +498,8 @@ def render_html_report(args, data, kline_data, metrics_daily, metrics_h1,
         "tp1": "110.07",
         "tp2": args.tp,
         "final_recs": final_recs,
+        "recommendation_rationale": f"情景A全平锁定全部浮盈但放弃强趋势剩余空间；情景C扛单至TP在CPI前双向跳空风险下违反纪律；情景B在当前价减仓50%锁定利润并下移SL，兼顾落袋与让趋势奔跑，与账户风险纪律一致。",
+        
         "data_sources": data_sources,
         "method_cards": method_cards,
         "discipline_bottom": f"本笔若严格执行「情景 B + 9/15 减仓」，预期收益 +${lock_usd} ~ +${pos['pnl_usd']:.0f}（{pos['pnl_pct']:.1f}% 落袋 + 顺势奔跑），最大回吐 ≤ $11。",

@@ -27,7 +27,7 @@ body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;backgroun
 .chart-box{background:linear-gradient(135deg,#1c2541,#0b132b);padding:16px;border-radius:12px;border:1px solid rgba(127,169,255,.15);box-shadow:0 4px 16px rgba(0,0,0,.2);margin-bottom:16px}
 .chart-title{color:#7fa9ff;font-size:15px;font-weight:600;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(127,169,255,.2);display:flex;align-items:center;gap:8px}
 .chart{height:420px}
-.chart-small{height:320px}
+.chart-small{height:360px}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;background:rgba(28,37,65,.4);border-radius:8px;overflow:hidden}
 th{background:rgba(127,169,255,.18);color:#7fa9ff;text-align:left;padding:10px 12px;font-weight:600;border-bottom:1px solid rgba(127,169,255,.2)}
 td{padding:10px 12px;border-bottom:1px solid rgba(127,169,255,.08);color:#d8e0f0}
@@ -177,10 +177,11 @@ __CROSS_TABLE__
 __MTF_TABLE__
 </table>
 
-<div class="sub-title">5.2 关键位</div>
-<div class="key-levels">
+<div class="sub-title">5.2 关键位（每品种 1 行表格）</div>
+<table>
+<tr><th>品种</th><th>关键位</th><th>类型</th><th>作用 / 触发条件</th></tr>
 __KEY_LEVELS__
-</div>
+</table>
 
 <div class="verdict" style="margin-top:16px">
 <h3 style="color:#fff;margin-bottom:8px">🟢 MTF 综合判定</h3>
@@ -261,6 +262,7 @@ __HEALTH_TABLE__
 
 <div class="recommendation" style="margin-top:16px">
 <h3>🎯 最终推荐：情景 B（进取派）+ 重大事件前全面降仓</h3>
+<div class="central-bank" style="margin-bottom:12px"><strong>🧭 抉择依据：</strong>__RECOMMENDATION_RATIONALE__</div>
 <ol>
 __FINAL_RECS__
 </ol>
@@ -425,6 +427,8 @@ backgroundColor:'transparent',
 tooltip:{backgroundColor:'rgba(20,30,60,.9)',borderColor:'#7fa9ff',textStyle:{color:'#fff'}},
 radar:{
 indicator:__RADAR_INDICATOR__,
+radius:'55%',
+center:['50%','54%'],
 axisName:{color:'#a8b8d0',fontSize:11},
 splitLine:{lineStyle:{color:'rgba(127,169,255,.15)'}},
 splitArea:{areaStyle:{color:['rgba(127,169,255,.02)','rgba(127,169,255,.05)']}},
