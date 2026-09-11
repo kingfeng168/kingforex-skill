@@ -188,7 +188,7 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 - *(已移除 `assets/macro_dashboard_template.md`:本技能不再维护独立看板/九宫格,跨市场信号直接汇入交易计划与盘面研判)*
 - `assets/scenario_plan_template.md` — 事件日"情景—反应"预案(NFP/FOMC/CPI/EIA)。
 - `assets/analysis_to_strategy_template.md` — 宏观研判→跨市场验证→实盘结构→可执行策略的三阶闭环模板(含 Gate 与降级规则)。
-- **`assets/position_report_template.html` — v1.4.0 新增**:持仓深度分析报告 HTML 模板(九大节固定结构,纪律置末,真实 K 线 + 量化雷达 + 跨市场柱图 + 4 线 markLine),用 `scripts/position_report.py` 一键生成;配套方法论见 `references/position_report.md`。
+- **`assets/position_report_template.html` — v1.4.2 当前 · 本技能唯一批准的分析报告模板(强制套用)**:九大节固定结构(纪律置末),真实 K 线 + 量化雷达 + 跨市场柱图 + 4 线 markLine,深空蓝霓虹暗色版面。**所有分析报告(持仓诊断 / 多品种计划 / 专项分析)强制以该骨架输出**——持仓类用 `scripts/position_report.py` 一键生成,非持仓类按 `references/position_report.md` 第 0 节适配第①节后手动填充;默认 8 标的、利差结构、关键位表格、宏观大事、交易计划判定等规则见 `references/position_report.md` v1.4.2。
 
 ## 计算脚本与权威取数(确定性执行)
 
@@ -247,7 +247,7 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 `python scripts/live_market_fetch.py --preset gold --out "D:/workbuddy/输出文件/gold.csv"`
 `python scripts/live_market_fetch.py --preset sina --list "USDCNY,hf_XAU"   # 真实时报价`
 `python scripts/live_market_fetch.py --preset all --json   # 一键聚合 5 源`
-- `scripts/position_report.py` — **v1.4.0 新增 · 持仓深度分析报告一键生成器(整合 itick_fetch + kline_fetch + quant_metrics + bis_fetch + fred_fetch + jin10_mcp + 模板填充)**:输入 `--symbol --direction --lots --entry --sl --tp --account --risk-pct --out-dir`,6 步流水线自动产出**完整持仓分析报告**——`<SYMBOL>持仓分析.html`(47 KB,九大节 + 真实 K 线 + 量化雷达 + 跨市场柱图 + 入场/SL/TP/当前 四线 markLine + 央行议息提醒 + 6 大纪律卡)+ `持仓分析报告_<SYMBOL>_<YYYY-MM-DD>.md`(精简版,2-3 KB)。PnL 公式: JPY 对 = pips × lots × 1000 / USDJPY_rate(实时拉取,失败 fallback 153.0);其他对 = pips × lots × 10。三角验证: USDJPY × AUDUSD vs AUDJPY。详见 `assets/position_report_template.html` 与 `references/position_report.md`。
+- `scripts/position_report.py` — **v1.4.2 当前 · 持仓/交易计划分析报告一键生成器(整合 itick_fetch + kline_fetch + quant_metrics + bis_fetch + fred_fetch + jin10_mcp + 模板填充)**:输入 `--symbol --direction --lots --entry --sl --tp --account --risk-pct --out-dir`,6 步流水线自动产出**完整分析报告**——`<SYMBOL>持仓分析.html`(九大节 + 真实 K 线 + 量化雷达 + 跨市场柱图 + 入场/SL/TP/当前 四线 markLine + 央行议息提醒 + 6 大纪律卡)+ `持仓分析报告_<SYMBOL>_<YYYY-MM-DD>.md`。v1.4.2 起非持仓类多品种计划同样强制套用该模板骨架,并遵循默认 8 标的、利差结构、关键位表格、宏观大事、交易计划判定等规则。PnL 公式: JPY 对 = pips × lots × 1000 / USDJPY_rate;其他对 = pips × lots × 10。三角验证: USDJPY × AUDUSD vs AUDJPY。详见 `assets/position_report_template.html` 与 `references/position_report.md`。
 - `scripts/cftc_fetch.py` — **CFTC COT/TFF 持仓拥挤度(免费·无需 key·中国可直连 cftc.gov)**:从 CFTC 官方年度历史文件(`fut_disagg_txt_YYYY.zip` 商品 / `fut_fin_txt_YYYY.zip` 外汇)解析 Managed Money(商品)或 Leveraged Funds(外汇)投机多/空/净头寸,输出**净头寸/OI、多空比 L/S、52 周历史分位(拥挤度等级:极度做多/偏拥挤做空/中性)、周环比 ΔNet/Δ净头寸-OI**;直接服务"持仓极度拥挤→反转风险"研判。支持 `--symbol GOLD/WTI/EURUSD/JPYUSD/AUDUSD/...`、`--market-code`、`--weeks`(分位窗口)、`--json`、`--from-file`(离线解析预下载文件)、`--list`(列品种);缓存到 `scripts/.cftc_cache`(默认 3 天,自动叠加前一年扩充历史)。取数铁律:只读官方公开文件,失败即报错,绝不杜撰。
 - `scripts/wgc_lbma_fetch.py` — **黄金 LBMA 代理(免费·无需 key)**:经 gold-api.com 取国际现货金/银(美元/盎司,紧贴 LBMA 定盘)`--symbol XAU|XAG`;WGC 黄金供需/央行购金与 LBMA 官方定盘因无免费 JSON API,附 `--manual` 标准化 WebFetch 手工取数指引(绝不杜撰数字)。
 - `scripts/opec_fetch.py` — **OPEC MOMR 原油报告(best-effort + 手工指引)**:尽力直连 OPEC 公开页抽取供需关键词,失败(网络/地域封锁,如本开发环境 opec.org 返回 403)则输出标准化 WebFetch 手工取数指引(全球需求增长/非 OPEC 供应/OPEC 产量/ORB 一揽子价);IEA MODS 为付费,附 KAPSARC 免费历史替代。绝不杜撰数字。
@@ -294,7 +294,40 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 
 ## 输出规范(强制)
 
-- **输出交易计划时**,AI 必须严格按以下表格输出(数字必须具体,不得省略任何行):
+- **【最高优先级】所有分析报告强制套用统一模板骨架(`assets/position_report_template.html`)**:
+  - **适用范围**:本技能产出的**任何"分析报告"类输出**——持仓深度诊断、多品种/单品种交易计划、专项行情分析——**一律以该九大节 HTML 模板为唯一输出骨架,不得另起炉灶、不得用纯文字或自由表格替代**。这是用户 2026-09-10 确认的标准(v1.3.1 AUDJPY 持仓分析报告),为本技能**唯一批准的分析报告视觉规范**(深空蓝霓虹暗色版面 + 红绿涨跌国际惯例 + 真实 K 线 + 量化雷达 + 跨市场柱图 + 入场/SL/TP/当前 四线 markLine)。
+  - **九大节固定顺序(纪律永远置末)**:① 快照(持仓/组合/标的) ② 宏观金融面解读 ③ 当日重要数据 + 本月议息提醒 ④ 跨市场验证 ⑤ 多周期共振(含真实 K 线图 + 四线 markLine) ⑥ 量化验证 ⑦ 综合判定与操作建议 ⑧ 引用与依据 ⑨ 交易纪律。
+  - **持仓类报告**:直接走 `scripts/position_report.py` 一键生成(占位符自动填充),HTML + MD 双版本。
+  - **非持仓类报告(多品种计划 / 专项分析)**:第一章"持仓快照"改为"**分析标的快照**"(列出每个品种实时价 / ATR / 趋势 / 计划方向,不写浮盈与持仓健康度评分),其余八节结构不变,同样基于该模板填充后输出 **HTML + MD 双版本**。具体适配规则见 `references/position_report.md` 第 0 节。
+  - **HTML 与 MD 双版本必须格式一致**(章节、表格、数值、结论一一对应);数值统一保留 2 位小数;结论禁用"可能 / 或许"等模糊词。
+  - 触发任何分析/报告生成前,先 `Read assets/position_report_template.html` 套骨架,再填数——**禁止脱离该模板自由发挥版面**。
+
+- **默认投资标的(v1.4.2 新增)**:当用户未特别指定货币对或商品时,多品种交易计划默认覆盖以下 **7 个固定标的 + 1 个随机标的**,共 8 个:
+  - **固定 7 标**:金(XAUUSD)、银(XAGUSD)、美元(DXY / USDX)、欧元(EURUSD)、英镑(GBPUSD)、日元(USDJPY)、WTI 原油(USOIL/CL)。
+  - **随机 1 标**:当日/当期**利差最大的货币对**(基于 10Y 国债利差计算,从 G10 高息货币兑日元中挑选最大者;常见为 USDJPY/AUDJPY/NZDJPY,与固定标的重复时自动替换为次高者,确保不重复)。
+  - 若用户指定了具体货币对或商品,则按指定标的覆盖默认列表,但**仍须保证 8 个标的**;不足 8 个时以"利差最大货币对"补足。
+
+- **利差结构表(v1.4.2 新增)**:第②节「宏观金融面解读 → 2.2 利差结构」必须固定列出 **3 行**:
+  - **US 2s10s**(美债曲线利差,趋势/解读);
+  - **两个利差最大的货币对利差**(基于央行政策利率或 10Y 国债收益率,如 US 10Y − JP 10Y、AU − JP 利差);
+  - 解读须明确点出「套息/反套息」对日元交叉盘、商品货币的影响。
+
+- **关键位(v1.4.2 新增)**:第⑤节「多周期共振」中,每个标的只列**一个最关键位表格**,表格必须区分标的:
+  - 表头:品种 | 关键位 | 类型 | 作用/触发条件
+  - 每个标的 1 行,类型仅三选一:**支撑/阻力/中枢**。
+  - 禁止把多个标的关键位混在同一组卡片中不标品种名。
+
+- **宏观大事综合(v1.4.2 新增)**:第②节「宏观大事综合」中,**每个标的必须列出 2 条对其影响最大的宏观事项**,格式:
+  - `【XAUUSD】① ... ② ...`
+  - `【EURUSD】① ... ② ...`
+  - 事项须具体(数据/央行/地缘),避免空泛;事项可部分重叠(如美联储议息影响多个品种),但须按品种给出差异化影响路径。
+
+- **交易计划输出规则(v1.4.2 重大调整)**:第⑦节「综合判定与操作建议」不再默认给交易计划,而是按实际可交易性二选一输出,且**必须包含明确的平仓计划**:
+  - **可交易**(三维共振 + 结构触发 + 风险可控 + 小账户手数可执行) → 输出交易计划表格,字段包括:品种/方向/挂单类型/入场/止损/目标1/目标2/建议手数/单笔风险/**平仓计划**(何时平 50%、何时移动止损、何时全平、计划失效条件)。
+  - **不建议建仓**(三维未共振/信号冲突/事件窗口流动性差/ATR 过大导致小账户风险超标/无合格 RR) → **直接输出「不建议建仓」并给出具体理由**;禁止为了输出计划而硬凑交易建议,空仓即结论。
+  - 同一报告中不同标的应分别判定:部分给交易计划,部分给不建议建仓,不允许一刀切全部强行给计划。
+
+- **输出交易计划时**(作为第⑦节可交易分支的内容),AI 必须严格按以下表格输出(数字必须具体,不得省略任何行):
   | 项目 | 具体数值 |
   | :--- | :--- |
   | **交易品种** | XAUUSD / EURUSD |
