@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--equity", type=float, required=True, help="账户权益(USD)")
     ap.add_argument("--positions", nargs="+", required=True, help="持仓列表")
     ap.add_argument("--max-risk", type=float, default=5.0,
-                    help="总风险暴露上限 %% (基于止损%), 默认 5")
+                    help="总风险暴露上限 %% (基于止损%%), 默认 5")
     args = ap.parse_args()
 
     positions = parse_positions(args.positions)

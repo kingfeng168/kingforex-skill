@@ -1305,8 +1305,14 @@ open(md_path, "w", encoding="utf-8").write("\n".join(md))
 print("MD written:", md_path, len(md), "lines")
 
 # ===================== 独立 Excel 复盘模板 (与 v2.1 一致) =====================
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+# HTML 与 MD 此时均已写完；缺少 openpyxl 时仅跳过 XLSX，不影响报告主产物。
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+except ImportError:
+    print("XLSX skipped: 未安装 openpyxl —— 运行 'pip install openpyxl' 后可生成交易复盘模板。")
+    print("            HTML/MD 已正常产出，功能不受影响。")
+    raise SystemExit(0)
 wb = Workbook()
 blue = "2A5298"
 hdr_fill = PatternFill("solid", fgColor=blue)

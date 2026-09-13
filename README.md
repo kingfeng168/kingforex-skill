@@ -1,5 +1,9 @@
 # kingforex-skill
 
+**当前版本：v2.4.4** · [更新日志 CHANGELOG.md](CHANGELOG.md) · MIT License
+
+> 版本号即 Git tag 号（如 tag `v2.4.4`）。本仓库自 v2.4.4 起统一版本线，不再维护独立的发布序号。
+
 外汇 / 贵金属 / 大宗商品现货交易者的**宏观交易体系与纪律框架**技能。覆盖「宏观利率地基 → 盘前计划筛选 → 入场执行 → 持仓管理 → 离场 → 复盘 → 心理纪律」全链路，外加外汇 / 黄金 / 原油专项、跨市场联动、市场微观结构、风险组合管理与工具数据源九大模块。
 
 ## 核心能力
@@ -64,7 +68,13 @@ git clone https://github.com/kingfeng168/kingforex-skill.git \
 
 ## 依赖
 
-- Python 3.10+（脚本为标准库 + 少量常见第三方库；联网抓取走 `urllib`，无需安装客户端）。
+- Python 3.10+。脚本为标准库 + **一个可选第三方库**：
+  - **`openpyxl`**（可选）—— 仅用于生成 Excel 交易复盘模板。
+    ```bash
+    pip install openpyxl            # 国内建议：-i https://pypi.tuna.tsinghua.edu.cn/simple
+    ```
+    未安装时**不会报错中断**：报告生成器会自动跳过 XLSX，HTML 与 MD 主产物照常产出，并打印一行提示。
+- 联网抓取全部走 `urllib`，无需安装 HTTP 客户端。
 - 部分数据源需要免费 API Key（见下文）。
 
 ## 密钥配置（用户自备，不进 zip / 不写进源码）

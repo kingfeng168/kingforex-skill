@@ -217,7 +217,7 @@ python scripts/live_market_fetch.py --preset sina --list "USDCNY,hf_XAU"
 python scripts/live_market_fetch.py --preset all --json
 ```
 
-> ⚠️ 说明:新浪为非官方接口,需带 Referer 头(脚本已内置)并以 GBK 解码;加密交易所(Binance/OKX/Bybit/CoinGecko 等)在大陆网络被墙、Yahoo/ECB SDW/BIS 旧端点不可达,均已排除,不纳入本脚本。A股/港股实时(东财/腾讯)、需 key 源(Alpha Vantage/Twelve Data/FRED/Tushare)及偏题大模型清单,仅作本地备查,未脚本化,未脚本化。
+> ⚠️ 说明:新浪为非官方接口,需带 Referer 头(脚本已内置)并以 GBK 解码;加密交易所(Binance/OKX/Bybit/CoinGecko 等)在大陆网络被墙、Yahoo/ECB SDW/BIS 旧端点不可达,均已排除,不纳入本脚本。A股/港股实时(东财/腾讯)、需 key 源(Alpha Vantage/Twelve Data/FRED/Tushare)及偏题大模型清单,仅作本地备查,未脚本化。
 
 ### 7.7 K 线历史数据(盘面解读的输入)
 

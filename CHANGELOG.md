@@ -1,5 +1,22 @@
 # kingforex-skill 更新日志
 
+## v2.4.4 — 跨机迁移加固（exposure CLI 崩溃 / openpyxl 硬依赖 / 打包配套）· 2026-09-13
+
+**对应需求：把本技能完整迁移到另一台电脑上直接可用。为此对全量脚本做换机可移植性改造，并在新机自检中抓到 2 个新缺陷。**
+
+- **① `exposure.py --help` 崩溃**（与 v2.4.3 修的同类缺陷，上次扫描遗漏）：
+  - **现象**：`python exposure.py --help` → `ValueError: unsupported format character ')' (0x29) at index 17`。根因是 `--max-risk` 的 help 写成 `"总风险暴露上限 %% (基于止损%), 默认 5"` —— 开头的 `%%` 是对的，但 `(基于止损%)` 里的 `%` 紧跟 `)`，argparse 做 `help % params` 格式化时炸掉，**整条命令行不可用**。
+  - **修复**：`(基于止损%)` → `(基于止损%%)`。
+  - **新增全量静态扫描**（AST 提取所有 `help=` / `description=` / `epilog=` 字符串并试运行 `s % {...}`）：本目录 33 个脚本现命中 0 处，根治此类问题。
+- **② openpyxl 由硬依赖改为优雅降级**（5 个决策增强报告生成器）：
+  - **现象**：`from openpyxl import Workbook` 在文件末尾无条件 import，新机未装 openpyxl 时**在 HTML/MD 都已写完之后**抛 `ModuleNotFoundError`，用户误以为整份报告失败。
+  - **修复**：改为 `try / except ImportError`，缺库时打印「XLSX skipped: 未安装 openpyxl …HTML/MD 已正常产出，功能不受影响」并 `raise SystemExit(0)` 干净退出。
+- **③ 跨机可移植性改造**（换机直接跑的关键）：
+  - 脚本内绝对路径全部改为动态解析：`sys.executable`（Python 解释器）、`os.path.dirname(os.path.abspath(__file__))`（技能目录/资源/输出）、`os.environ.get("TEMP")`（临时目录）。**目标机用户名不同也无需改任何代码**。
+  - 报告生成器读取的日线 CSV 归位到 `output/行情分析_YYYYMMDD/`，随包分发。
+- **④ 迁移配套交付物**：`请先读我.md`（安装/验证/FAQ/密钥安全须知）、`安装.bat`（GBK+CRLF：一键探测 Python → 复制含隐藏文件 → 装依赖 → 自检）、`自检.py`（8 组 54 项）、`requirements.txt`、`离线依赖/`（openpyxl + et-xmlfile wheel，免联网）、`assets/vendor/echarts.min.js`（离线出图备用）。
+- **安装器实测教训**：**不要用 `errorlevel` 判断解释器可用性** —— cmd 的 errorlevel 是有符号数，`py` 启动器失败返回 `0xA0000006`（`%errorlevel%` 显示 2684354566 / 有符号 −1610612730），`if not errorlevel 1` 会判真并**选中坏解释器**。改为**正向输出探测**：候选解释器执行 `sys.version_info>=(3,10) and print(sys.executable)`，只有版本达标才打印路径，再用 `for /f` 捕获，最后校验路径真实存在。
+
 ## v2.4.3 — 发布级缺陷修复（CLI 崩溃 / 过期自检 / 数据缺失硬崩）· 2026-09-13
 
 **对应需求:将 v2.4.x 全部更新发布到 GitHub。发布前逐脚本实跑验证时暴露 3 类真实缺陷,一并修复。**
