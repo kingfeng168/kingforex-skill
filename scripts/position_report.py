@@ -21,11 +21,11 @@
   → <SYMBOL>持仓分析.html
 
 用法（受管 Python 3.13.12）：
-  python "C:/Users/qa013/.workbuddy/skills/kingforex-skill/scripts/position_report.py" \
+  python "./scripts/position_report.py" \
     --symbol AUDJPY --direction SELL --lots 0.02 \
     --entry 114.573 --sl 112.583 --tp 109.781 \
     --account 574 --risk-pct 2.0 \
-    --out-dir "D:/workbuddy/输出文件/持仓分析_2026-09-10"
+    --out-dir "./output/持仓分析_2026-09-10"
 
 依赖：同 skill 内其他脚本（itick_fetch / kline_fetch / quant_metrics / bis_fetch /
       fred_fetch / jin10_mcp / mtf_confluence）。
@@ -39,11 +39,11 @@ import sys
 from datetime import datetime, timezone, timedelta
 
 # ============ 路径配置 ============
-SKILL_DIR = r"C:\Users\qa013\.workbuddy\skills\kingforex-skill"
+SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(SKILL_DIR, "scripts")
 ASSETS_DIR = os.path.join(SKILL_DIR, "assets")
 TEMPLATE_HTML = os.path.join(ASSETS_DIR, "position_report_template.html")
-PYTHON_BIN = r"C:\Users\qa013\.workbuddy\binaries\python\versions\3.13.12\python.exe"
+PYTHON_BIN = sys.executable
 
 CST = timezone(timedelta(hours=8))
 
@@ -597,7 +597,7 @@ USDJPY 153.546 × AUDUSD 0.72183 = 110.836 ≈ {current_price} ✅
 
 ---
 *K线数据：{kline_summary}*
-*HTML 版：D:\\workbuddy\\输出文件\\持仓分析_*
+*HTML 版：./output/持仓分析_*
 """
     return md
 
@@ -612,7 +612,8 @@ def main():
     ap.add_argument("--sl", type=float, required=True, help="止损")
     ap.add_argument("--tp", type=float, required=True, help="止盈")
     ap.add_argument("--account", type=float, default=10000, help="账户权益 USD")
-    ap.add_argument("--risk-pct", type=float, default=2.0, help="单笔风险%")
+    ap.add_argument("--risk-pct", type=float, default=2.0,
+                    help="单笔风险占净值百分比,输入 2.0 表示 2%%")
     ap.add_argument("--out-dir", default=None, help="输出目录")
     args = ap.parse_args()
 
@@ -624,7 +625,8 @@ def main():
         out_dir = args.out_dir
     else:
         date_str = datetime.now(CST).strftime("%Y-%m-%d")
-        out_dir = rf"D:\workbuddy\输出文件\持仓分析_{symbol}_{date_str}"
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "..", "output", "持仓分析_%s_%s" % (symbol, date_str))
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"[1/6] 拉取 {symbol} 实时报价...")
@@ -642,7 +644,7 @@ def main():
             usdjpy_rate = q_usdjpy["price"]
 
     print(f"[2/6] 抓取 K 线（200 根）...")
-    tmp_dir = r"C:\Users\qa013\AppData\Local\Temp"
+    tmp_dir = os.environ.get("TEMP") or "/tmp"
     daily_csv = os.path.join(tmp_dir, f"{symbol}_daily_pr.csv")
     h1_csv = os.path.join(tmp_dir, f"{symbol}_h1_pr.csv")
     n_daily = fetch_kline(symbol, "1day", daily_csv)

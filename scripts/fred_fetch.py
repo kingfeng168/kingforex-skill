@@ -11,7 +11,7 @@ fred_fetch.py — FRED(圣路易斯联储)权威宏观/利率数据取数脚本 
 Base URL : https://api.stlouisfed.org/fred  (FRED API v1, 公开、需免费 key)
 端点     : /fred/series/observations  (取观测值)
 Key 来源 : 命令行 --api-key 优先;否则环境变量 FRED_API_KEY;否则脚本同目录 .fred_key。
-Key 已配置: scripts/.fred_key(本地文件,不进 zip、不进源码)。
+Key 配置: 需自备 key 并写入 scripts/.fred_key(本地文件,不进 zip、不进源码)。
 
 依赖: 仅 Python 标准库(urllib / json / csv / argparse)。Python 3.8+。
 

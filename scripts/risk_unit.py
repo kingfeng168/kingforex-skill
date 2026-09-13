@@ -165,12 +165,14 @@ def build_parser():
     p_e.set_defaults(func=cmd_expectancy)
 
     p_d = sub.add_parser("drawdown", help="回撤降仓查表")
-    p_d.add_argument("--dd", type=float, required=True, help="当前回撤百分比(如 12 表示 12%)")
+    p_d.add_argument("--dd", type=float, required=True,
+                     help="当前回撤百分比(如 12 表示 12%%)")
     p_d.set_defaults(func=cmd_drawdown)
 
     p_r = sub.add_parser("ruin", help="固定分数法破产风险蒙特卡洛")
     p_r.add_argument("--win", type=float, required=True, help="胜率(0–1)")
-    p_r.add_argument("--risk", type=float, default=1.0, help="单笔风险%(净值), 默认 1")
+    p_r.add_argument("--risk", type=float, default=1.0,
+                     help="单笔风险占净值百分比,默认 1%%")
     p_r.add_argument("--payoff", type=float, default=2.0, help="盈亏比 R, 默认 2.0")
     p_r.add_argument("--trades", type=int, default=200, help="每轮模拟笔数, 默认 200")
     p_r.add_argument("--runs", type=int, default=5000, help="模拟轮数, 默认 5000")

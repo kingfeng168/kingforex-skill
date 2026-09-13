@@ -1,8 +1,33 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 密钥 / 本地便利文件（单行纯文本，仅本机存在，永不入库）
 *.key
 .*_key
+.eia_key
+.fred_key
+.td_key
+.jin10_key
+.itick_key
+.goldprice_key
+.oilprice_key
+.qveris_key
 .env
-*.zip
-.DS_Store
+.env.*
+
+# 数据缓存与产物
 output/
+scripts/output/
+.cftc_cache/
+*.zip
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

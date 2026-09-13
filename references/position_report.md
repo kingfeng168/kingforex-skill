@@ -214,7 +214,7 @@ quant_metrics.py       → 6 类量化指标（基于 OHLC）
 
 ```bash
 # 一键生成持仓分析报告（HTML + MD）
-python "C:/Users/qa013/.workbuddy/skills/kingforex-skill/scripts/position_report.py" \
+python "./scripts/position_report.py" \
   --symbol AUDJPY \
   --direction SELL \
   --lots 0.02 \
@@ -223,7 +223,7 @@ python "C:/Users/qa013/.workbuddy/skills/kingforex-skill/scripts/position_report
   --tp 109.781 \
   --account 574 \
   --risk-pct 2.0 \
-  --out-dir "D:/workbuddy/输出文件/持仓分析_$(date +%Y-%m-%d)"
+  --out-dir "./output/持仓分析_$(date +%Y-%m-%d)"
 ```
 
 输出：
@@ -234,6 +234,7 @@ python "C:/Users/qa013/.workbuddy/skills/kingforex-skill/scripts/position_report
 
 | 版本 | 日期 | 改动 |
 |------|------|------|
+| v3.0 | 2026-09-12 | v3.0 全自动模板填充 Agent + 统一计算引擎：新增 scripts/calc_engine.py(单一事实来源,修复 v2.3 全部计算矛盾——pip价值差数量级/价格三处不一致/凯利20%误导/相关性文字与矩阵冲突/回测样本不足年化预测/评分黑箱)+ scripts/report_agent_v3.py(八步流水线,界面冻结复用 v2.3 模板 CSS/DOM 仅注入标准 JSON,输出 HTML+JSON+执行清单+一致性校验报告+数据源状态报告)+ references/v3_spec.md(完整规范);实测暴露 AUDJPY 0.02手单笔风险 4.06% 超 1% 上限 |
 | v2.3 | 2026-09-11 | v2.3 八项模板升级+凯利融入仓位计算：①评分卡 4×2 排列；②宏观大事综合表格化(每标的2条事件+加粗影响结论)；③凯利计算器新增**投资标的下拉框**(7标的 AUDJPY/USDJPY/EURUSD/GBPUSD/XAUUSD/XAGUSD/USOIL,JS INST 按标的维护 pip/SL/现价,切换联动重算,AUDJPY 显示超配警示/其余显示新开仓评估)；④引用与依据移至倒数第二(⑯日志 ⑰回测 ⑱引用 ⑲纪律)；⑤综合判定重构(15.1 持仓诊断4迷你卡+15.2 三情景卡+最终推荐表+15.3 其余7标判定+今日总判定绿框)；⑥快照扩 7 列(现价/日内%/日内区间/趋势结构/MTF方向/计划判定,真实K线末两根计算)+日内主轴横幅；⑦宏观面新增央行政策对比表(Fed/ECB/BoJ/BoE/RBA)+利差趋势列+套息结论+地缘风险4卡+当日数据三表(今日已公布/今日待公布/议息提醒)+事件纪律横幅；⑧ position_size.py 融合凯利公式(--winrate/--payoff/--kelly-mode,f*=(p×b−q)/b,有效风险%=min(纪律%,凯利档%,1%硬上限)三重约束,负期望否决 f*≤0→0手) |
 | v2.2 | 2026-09-11 | v2.2 模块顺序按分析/交易逻辑重排为 19 节：①决策总览 ②今日交易计划(建仓/持仓判定: 不适宜建仓明确「不建仓」+四维否决理由, 持仓计划按图1表格) ③快照 ④评分卡 ⑤宏观 ⑥当日数据 ⑦跨市场 ⑧多周期共振 ⑨量化 ⑩情景预案 ⑪凯利 ⑫相关性 ⑬风险仪表盘 ⑭动态止损 ⑮综合判定(图2: 最终推荐5条+其余7标判定表+今日总判定) ⑯引用 ⑰交易日志 ⑱信号回测 ⑲交易纪律(图3: 核心铁律+6类×4条, 永远置末)；日志与回测移至末段；decision_enhanced_report.py 各节独立变量按序拼装 |
 | v2.1 | 2026-09-11 | v2.1 决策增强 9 模块按参考模板重排：①决策总览=4卡片横排(账户/信号质量/凯利/最大风险+持仓风险进度条)；②情景预案=5列表格(情景/概率/触发路径/操作/预期结果)；③凯利=左公式右交互双面板(回测参数+账户测算+风险偏好下拉+使用注意)；④相关性=热力图+3列解读(高度正相关/低相关/组合诊断)；⑤风险仪表盘=4指标卡+权益曲线(含入金虚线)+风险预警框；⑥动态止损=分组柱状图+对比表+推荐绿框；⑦交易日志=明细表格(含入场理由/信心/情绪/离场计划/可能出错)；⑧信号回测=整体面板+R乘数曲线+近期明细表+结论4列(策略有效/需警惕/优化方向/长期预测)；⑨新增独立 Excel 复盘模板(4工作表:交易记录/R乘数统计/复盘10问/每周汇总,openpyxl)；新增 scripts/decision_enhanced_report.py 一键生成器(HTML+MD+XLSX 三件套,json.dumps 注入,node --check 通过) |

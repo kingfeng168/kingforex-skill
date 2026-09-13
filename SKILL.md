@@ -193,12 +193,14 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 ## 计算脚本与权威取数(确定性执行)
 
 - `scripts/position_size.py` — 输入账户权益、单笔风险%、止损距离(ATR 或点数)、合约乘数,输出**手数**与风险金额;支持 FX / 黄金 / 原油品种参数。**v2.3 凯利融合**:`--winrate`(胜率%) + `--payoff`(盈亏比 b) + `--kelly-mode {full,half,third}` 触发凯利计算——f*=(p×b−q)/b,输出全凯利/半凯利/三分之一凯利三档百分比;**有效风险% = min(纪律风险%, 凯利档位%, 1%硬上限)** 三重约束取最小并标注约束来源;**负期望否决**——f*≤0 时直接输出 0 手不开仓;不传 winrate/payoff 时保持传统(非凯利)模式,完全向后兼容。
+- `scripts/calc_engine.py` — **v3.0 统一计算引擎(Single Source of Truth,纯标准库)**:修复 v2.3 模板全部计算矛盾——合约规格表(每 0.01 手单位数 + pip + JPY 折算)、`pip_value_per_pip`(实时计算,禁写死;AUDJPY 0.02 手 = 2000×0.01/153.478 = **$0.1303/pip**,随 USDJPY 实时变动 —— 旧文档曾写 $0.1809(基于 USDJPY≈110.54)、v2.3 曾误写 $0.864,均已纠正)、`pnl`(空/多单向,价格差÷pip×pip价值)、`compute_lots`(风险预算反推手数,超额按 1% 硬上限压回)、`kelly`(f*=(p×b−q)/b + 负期望否决)、`kelly_recommended_lots`(最终手数=min(凯利档,1%风险,用户上限),禁把理论全凯利当实盘仓、禁输出「最优仓位 20%」误导)、`corr_matrix`(60 日 Pearson,文字由矩阵实时生成确保一致)、`score_4d`(四维 25/30/25/20 + 可量化子项明细,修复评分黑箱)、`event_silence`(距离事件小时数触发 4h/24h 静默)、`backtest`(样本<100 禁年化预测)、`consistency_check`(第八章校验清单,返回矛盾列表)。所有报告模块只调此引擎,禁止模块内手算/硬编码。
+- `scripts/report_agent_v3.py` — **v3.0 全自动模板填充 Agent 编排器(八步流水线)**:①数据采集(MCP/API,主源失败降级备源,全失败标注「数据缺失」) ②数据校验 ③指标计算 ④四维评分 ⑤决策(任一不满足→不建议建仓) ⑥持仓管理(浮盈/减仓/移动止损/三情景) ⑦一致性校验 ⑧报告渲染。**界面冻结**:复用 v2.3 模板 HTML 的 `<style>` 与 19 个 section 的 DOM id/class 骨架,只注入标准 JSON 数据,不修改界面代码。输出:完整 HTML(冻结界面+数据注入) + 标准 JSON(原始/计算/校验/源状态) + 今日执行清单 + 一致性校验报告 + 数据源状态报告。用法:`python report_agent_v3.py --position "AUDJPY SELL 0.02 114.573 2026-09-02 113.284 109.781" --equity 574.23 --out-dir "./output" [--no-trade|--manage-only]`。完整 v3.0 规范见 `references/v3_spec.md`。
 - `scripts/exposure.py` — 输入多笔持仓的方向与手数,计算**组合净方向暴露**与相关性集中度,标记是否超过总资金 3%–5% 上限或形成单一美元空头暴露;附 FOMC 意外 / 美股-5% / 油价-10% 压力测试。
 - `scripts/risk_unit.py` — **资金管控工具箱**(纯标准库):`kelly`(凯利/半凯利/硬封顶1%)、`expectancy`(R倍数期望值)、`drawdown`(回撤降仓查表)、`ruin`(固定分数法破产风险蒙特卡洛);把资金管控从经验变为可算数字,详见 `references/money_management.md`。
 - `scripts/quant_metrics.py` — **金融工程/量化分析指标计算引擎(纯标准库,第四维「量化验证」核心)**:输入价格序列(--csv/--text/--fetch,可选 --csv-b 双序列),输出六大类指标——①收益风险调整(年化收益/波动率/Sharpe/Sortino)、②回撤分析(最大回撤·回撤期·当前回撤)、③分布形态(偏度·峰度·Jarque-Bera 正态性)、④尾部风险(95%/99% 历史 VaR·CVaR/Expected Shortfall + 参数 VaR 对比)、⑤波动率建模(EWMA λ=0.94·已实现 vol 21d)、⑥时间序列诊断(自相关 lag1·均值回归半衰期·Hurst 指数 R/S 法·63d Z-score);`--json` 输出结构化,`--corr-b` 加算双品种皮尔逊相关;Z-score 自适应窗口(样本不足时回退 n/2);方法学与公式见 `references/quant_finance.md`。
 - `scripts/optimal_f.py` — **最优 f 仓位计算(Ralph Vince 方法 + 蒙特卡洛,纯标准库)**:输入逐笔盈亏序列(--csv/--text),网格搜索最大化几何增长率求最优 f,输出最优 f / 1/2 f / 1/4 f(分数 f)、期末财富倍数 TWR,并用蒙特卡洛重采样估计最大回撤分布(平均/中位/P95/P99/最坏)与破产概率(腰斩概率);全 f 破产概率通常 >99%(必爆),1/4 f 常 <5% 可承受;`--json` 结构化、`--mc` 控模拟次数;方法学见 `references/quant_finance.md` §5.5 与 §13 IMA 引用(Vince《资金管理数学》)。
 - `scripts/bis_fetch.py` — **BIS 官方统计 API(SDMX v2,无需 key)**:拉取各国央行政策利率(`WS_CBPOL`)、美元汇率(`WS_XRU`)、有效汇率(`WS_EER`)、全球流动性(`WS_GLI`),输出 CSV,供宏观利率地基与外汇研判直接使用。
-- `scripts/eia_fetch.py` — **EIA v2 API(原油模块,key 已配置于 `scripts/.eia_key`,不入 zip)**:拉取周度原油库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),输出 CSV,供原油模块与 EIA 事件交易研判直接使用(sndw 路由强制 `frequency=weekly`,系列用 `facets[series][]` 过滤;已移除无对应 ID 的 `crude_prod` 预设)。
+- `scripts/eia_fetch.py` — **EIA v2 API(原油模块,key 需自备,可存于 `scripts/.eia_key`,不入 zip)**:拉取周度原油库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),输出 CSV,供原油模块与 EIA 事件交易研判直接使用(sndw 路由强制 `frequency=weekly`,系列用 `facets[series][]` 过滤;已移除无对应 ID 的 `crude_prod` 预设)。
 - `scripts/fred_fetch.py` — **FRED(圣路易斯联储)宏观/利率 API v1(模块一 宏观利率地基,key 已配置于 `scripts/.fred_key`,不入 zip)**:拉取 10Y 名义利率 `DGS10`、10Y 实际利率(TIPS) `DFII10`(黄金定价第一锚)、10Y 盈亏平衡通胀 `T10YIE`、2s10s 利差 `T10Y2Y`(曲线倒挂/衰退信号)、短端 `DGS3MO`/`DGS1`/`DGS2`/`DGS5`、联邦基金利率 `FEDFUNDS`/`DFF`、长端 `DGS30`,输出 CSV(宽表)/JSON,供美元方向、实际利率、收益率曲线研判直接使用。Key 读取优先级:`--api-key` > 环境变量 `FRED_API_KEY` > `scripts/.fred_key`。
 - `scripts/imf_fetch.py` — **IMF SDMX 3.0 API(宏观/外汇,无需 key,base 可配)**:拉取 COFER 美元储备份额、IFS 实际有效汇率/官方储备/货币总量、WEO 宏观预测、BOP 国际收支、DOT 贸易方向,输出 CSV,供宏观利率地基与外汇研判直接使用(编写时 IMF 端点临时不可达,需本地 `--list` 验证连通性)。
 - `scripts/worldbank_fetch.py` — **World Bank Open Data API(宏观/外汇基本面,无需 key)**:拉取实际利率 `FR.INR.RINR`、CPI 通胀 `FP.CPI.TOTL.ZG`、经常账户占 GDP `BN.CAB.XOKA.GD.ZS`、GDP 增速 `NY.GDP.MKTP.KD.ZG`、官方汇率 `PA.NUS.FCRF`、外储 `FI.RES.TOTL.CD`、政府债务 `GC.DOD.TOTL.GD.ZS`,输出 CSV,直接支撑利率平价(IRP)/套息利差、中期汇率方向与 EM 脆弱性研判(本环境实测 HTTP 200 可用)。
@@ -216,11 +218,11 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 调用示例(用受管 Python):
 `python scripts/position_size.py --equity 100000 --risk 1 --stop 35 --multiplier 10`
 `python scripts/exposure.py --positions "XAUUSD:long:0.5" "AUDUSD:long:1.0" --equity 100000`
-`python scripts/bis_fetch.py --preset policy_rates --last 24 --out "D:/workbuddy/输出文件/bis_policy.csv"`
-`python scripts/eia_fetch.py --preset crude_stocks --last 12 --out "D:/workbuddy/输出文件/eia_crude.csv"`
-`python scripts/imf_fetch.py --preset cofer --format csv --out "D:/workbuddy/输出文件/imf_cofer.csv"`
-`python scripts/worldbank_fetch.py --preset real_rate --country "US;CN;JP;EU" --mrnev 5 --out "D:/workbuddy/输出文件/wb_realrate.csv"`
-`python scripts/fred_fetch.py --preset all_rates --last 30 --out "D:/workbuddy/输出文件/fred_rates.csv"   # 全曲线+实际/通胀/政策利率
+`python scripts/bis_fetch.py --preset policy_rates --last 24 --out "./output/bis_policy.csv"`
+`python scripts/eia_fetch.py --preset crude_stocks --last 12 --out "./output/eia_crude.csv"`
+`python scripts/imf_fetch.py --preset cofer --format csv --out "./output/imf_cofer.csv"`
+`python scripts/worldbank_fetch.py --preset real_rate --country "US;CN;JP;EU" --mrnev 5 --out "./output/wb_realrate.csv"`
+`python scripts/fred_fetch.py --preset all_rates --last 30 --out "./output/fred_rates.csv"   # 全曲线+实际/通胀/政策利率
 `python scripts/fred_fetch.py --series DGS10,DFII10,T10YIE --last 60   # 名义/实际/盈亏平衡通胀(黄金定价锚)`
 `python scripts/jin10_mcp.py quote XAUUSD                # 现货黄金实时报价(金十 MCP)`
 `python scripts/jin10_mcp.py kline XAUUSD --count 20     # 黄金K线`
@@ -241,14 +243,16 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 `python scripts/futures_analysis.py pull --kind oil     # 直连 OilPriceAPI 实时算 WTI-Brent 价差`
 `python scripts/futures_analysis.py pull --kind gold    # 直连 现货+GC期货 算期现结构`
 `python scripts/quantgist_fetch.py --preset calendar --api-key $QUANTGIST_API_KEY`
-`python scripts/quantgist_fetch.py --preset news_radar --min-impact 0.6 --api-key $QUANTGIST_API_KEY --out "D:/workbuddy/输出文件/qg_radar.csv"`
+`python scripts/quantgist_fetch.py --preset news_radar --min-impact 0.6 --api-key $QUANTGIST_API_KEY --out "./output/qg_radar.csv"`
 `python scripts/quantgist_fetch.py --preset commodities --api-key $QUANTGIST_API_KEY`
-`python scripts/live_market_fetch.py --preset fx_ref --from USD --to CNY,EUR,JPY --out "D:/workbuddy/输出文件/fx_ref.csv"`
-`python scripts/live_market_fetch.py --preset gold --out "D:/workbuddy/输出文件/gold.csv"`
+`python scripts/live_market_fetch.py --preset fx_ref --from USD --to CNY,EUR,JPY --out "./output/fx_ref.csv"`
+`python scripts/live_market_fetch.py --preset gold --out "./output/gold.csv"`
 `python scripts/live_market_fetch.py --preset sina --list "USDCNY,hf_XAU"   # 真实时报价`
 `python scripts/live_market_fetch.py --preset all --json   # 一键聚合 5 源`
 - `scripts/position_report.py` — **v2.0 当前 · 持仓/交易计划分析报告一键生成器(整合 itick_fetch + kline_fetch + quant_metrics + bis_fetch + fred_fetch + jin10_mcp + 模板填充)**:输入 `--symbol --direction --lots --entry --sl --tp --account --risk-pct --out-dir`,6 步流水线自动产出**完整分析报告**——`<SYMBOL>持仓分析.html`(九大节 + 真实 K 线 + 量化雷达 + 跨市场柱图 + 入场/SL/TP/当前 四线 markLine + 央行议息提醒 + 6 大纪律卡 + 决策增强摘要:决策总览卡 + 单标的评分卡 + 凯利仓位 + 风险仪表盘 + 动态止损对比 + 交易日志)+ `持仓分析报告_<SYMBOL>_<YYYY-MM-DD>.md`。v2.0 起非持仓类多品种计划同样强制套用该模板骨架(含 9 决策增强模块),并遵循默认 8 标的、利差结构、关键位表格、宏观大事、交易计划判定、评分卡/凯利/相关性/回测等决策增强规则。PnL 公式: JPY 对 = pips × lots × 1000 / USDJPY_rate;其他对 = pips × lots × 10。三角验证: USDJPY × AUDUSD vs AUDJPY。详见 `assets/position_report_template.html` 与 `references/position_report.md`。
-- `scripts/decision_enhanced_report.py` — **v2.3 当前 · 决策增强版今日行情分析一键生成器(HTML+MD+XLSX 三件套)**:面向多品种每日行情分析(默认 8 标的 + 利差最大货币对),输出 `今日行情分析_决策增强版_v2.3_<日期>.html/.md` + `交易复盘模板_v2.3.xlsx`。v2.3 固定 19 节顺序(分析→交易逻辑): 决策总览 → 今日交易计划(建仓/持仓判定) → 快照(7列+日内主轴) → 评分卡(4×2) → 宏观金融面(央行对比表/利率地基/利差套息/地缘4卡/宏观大事表格) → 当日数据三表(已公布/待公布/议息提醒)+事件纪律 → 跨市场 → 多周期共振 → 量化 → 情景 → 凯利(左公式+右交互,**投资标的下拉框**适配 7 标的) → 相关性 → 风险仪表盘 → 动态止损 → 综合判定(持仓诊断4卡+三情景+最终推荐表+其余7标判定+今日总判定) → 交易决策日志 → 信号历史回测 → **引用与依据(倒数第二)** → 交易纪律(核心铁律+6类×4条,置末)。9 决策增强模块按 v2.1 参考模板版式:决策总览 4 卡片、情景预案 5 列表格、凯利左公式右交互双面板、相关性热力图+3 列解读、风险仪表盘 4 指标卡+权益曲线+风险预警框、动态止损分组柱状图+对比表+推荐绿框、交易日志明细表格、信号回测整体面板+R 乘数曲线+明细表+结论 4 列、独立 Excel 复盘模板(openpyxl,4 工作表)。稳健模式:各节构建为独立变量再按序拼装(便于调序),全部 ECharts option 用 `json.dumps(ensure_ascii=False)` 注入(杜绝 f-string 花括号错误),CSS 复用 `assets/decision_enhanced_sample.html` 的 `<style>` 段,产出经 `node --check` + 19 节顺序 + 12 图表容器/初始化一一对应校验。快照现价/日内%/区间由 Twelve Data 真实 K 线末两根计算。修改顶部 `OUT`/`NOW`/`ACC`/`POS`/`KELLY`/`BT`/`OTHER7`/`RECOMMEND5`/`DISCIPLINE6`/`QUOTES`/`SCORES`/`SNAP_EXTRA`/`CB_POLICY`/`CARRY2`/`GEO_RISK`/`MACRO2`/`CAL_PUB`/`CAL_PENDING`/`CAL_MONTH` 等数据块即可复用于任意交易日。
+- `scripts/decision_enhanced_report.py` — **v2.3 当前 · 决策增强版今日行情分析一键生成器(HTML+MD+XLSX 三件套)**:面向多品种每日行情分析(默认 8 标的 + 利差最大货币对),输出 `今日行情分析_决策增强版_v2.3_<日期>.html/.md` + `交易复盘模板_v2.3.xlsx`。v2.3 固定 19 节顺序(分析→交易逻辑): 决策总览 → 今日交易计划(建仓/持仓判定) → 快照(7列+日内主轴) → 评分卡(4×2) → 宏观金融面(央行对比表/利率地基/利差套息/地缘4卡/宏观大事表格) → 当日数据三表(已公布/待公布/议息提醒)+事件纪律 → 跨市场 → 多周期共振 → 量化 → 情景 → 凯利(左公式+右交互,**投资标的下拉框**适配 7 标的) → 相关性 → 风险仪表盘 → 动态止损 → 综合判定(持仓诊断4卡+三情景+最终推荐表+其余7标判定+今日总判定) → 交易决策日志 → 信号历史回测 → **引用与依据(倒数第二)** → 交易纪律(核心铁律+6类×4条,置末)。9 决策增强模块按 v2.1 参考模板版式:决策总览 4 卡片、情景预案 5 列表格、凯利左公式右交互双面板、相关性热力图+3 列解读、风险仪表盘 4 指标卡+权益曲线+风险预警框、动态止损分组柱状图+对比表+推荐绿框、交易日志明细表格、信号回测整体面板+R 乘数曲线+明细表+结论 4 列、独立 Excel 复盘模板(openpyxl,4 工作表)。稳健模式:各节构建为独立变量再按序拼装(便于调序),全部 ECharts option 用 `json.dumps(ensure_ascii=False)` 注入(杜绝 f-string 花括号错误),CSS 复用 `assets/decision_enhanced_sample.html` 的 `<style>` 段,产出经 `node --check` + 19 节顺序 + 12 图表容器/初始化一一对应校验。快照现价/日内%/区间由 Twelve Data 真实 K 线末两根计算。修改顶部 `OUT`/`NOW`/`ACC`/`POS`/`KELLY`/`BT`/`OTHER7`/`RECOMMEND5`/`DISCIPLINE6`/`QUOTES`/`SCORES`/`SNAP_EXTRA`/`CB_POLICY`/`CARRY2`/`GEO_RISK`/`MACRO2`/`CAL_PUB`/`CAL_PENDING`/`CAL_MONTH` 等数据块即可复用于任意交易日。**v3.0 全自动 Agent**:`scripts/report_agent_v3.py` 以本 v2.3 模板 HTML 为「界面冻结基准」(复用其 `<style>` 与 19 节 DOM 骨架),通过 `scripts/calc_engine.py` 统一引擎注入实时数据自动生成报告,详见 `references/v3_spec.md`——模板(v2.3 手工填充)与 Agent(v3.0 自动填充)共用同一界面与计算口径,互不冲突。
+- **v2.4 微调生成器(2026-09-13)**:`scripts/decision_enhanced_report_v24.py` — 在 **v2.3 版面零改动**前提下接入 `calc_engine.py` 统一引擎(单一事实来源),仅新增 3 个「补充节」(四·补 评分模型子项明细 / 六·补 事件静默自动计算 / 二十、数据一致性校验报告,全部复用既有 CSS 类);AUDJPY 现价统一为日线最后收盘(消除 v2.3 的 110.46967/110.54/110.47 三处不一致);凯利改"最终=min(半凯利,1%风险,用户上限)"并删除「最优仓位 20%」误导;相关性文字由 60 日 Pearson 矩阵实时生成;回测样本<100 禁年化预测;一致性问题自动标红。输出 `今日行情分析_决策增强版_v2.4_<日期>.html/.md` + `交易复盘模板_v2.4.xlsx`(23 节 / 12 图)。
+- **v2.4.1 微调生成器(2026-09-13)**:`scripts/decision_enhanced_report_v241.py` — ①建仓判定四项理由逐行起行;②**修复量化雷达图异常**:旧 `quant_block()` 把 Hurst 算在**收益率序列**上(应算价格序列)、Z 用 `(last−mean)/(sd/√n)` 的 **t 统计量**口径(应为 63 日滚动 Z-score),导致 6 轴仅 2 轴有值、多边形被拉成**细长条**;现改用 `quant_metrics.py` 真实计算 + **AUDJPY vs XAUUSD 双多边形 6 轴 0-100 归一化**(年化波动÷30% / 最大回撤÷40% / 下行偏差÷25% / |偏度|÷1.5 / |Z63|÷3 / 日VaR95÷5%);③第⑨节按参考模板重构为「双图(雷达 + 日对数收益分布直方图)+ **6.1** AUDJPY 200 根指标表 + **6.2** XAUUSD 200 根 + CFTC 拥挤度表 + **6.3** 量化结论表」,接入 `cftc_fetch.py --symbol GOLD` 真实持仓(净多 136,771 手 / 净多占总持仓 32.94% / 52 周分位 **89.22%** / 周环比 ΔNet −7,976 手);新增单日 95% 分位风险量化(AUDJPY 0.02 手 ≈ $11.75 = 账户 2.05%;XAUUSD 0.01 手 ≈ $118.80 = 账户 20.69% → 当前账户不可参与黄金)。输出 `..._v2.4.1_<日期>` 系列(23 节 / **13 图**)。
 - `scripts/cftc_fetch.py` — **CFTC COT/TFF 持仓拥挤度(免费·无需 key·中国可直连 cftc.gov)**:从 CFTC 官方年度历史文件(`fut_disagg_txt_YYYY.zip` 商品 / `fut_fin_txt_YYYY.zip` 外汇)解析 Managed Money(商品)或 Leveraged Funds(外汇)投机多/空/净头寸,输出**净头寸/OI、多空比 L/S、52 周历史分位(拥挤度等级:极度做多/偏拥挤做空/中性)、周环比 ΔNet/Δ净头寸-OI**;直接服务"持仓极度拥挤→反转风险"研判。支持 `--symbol GOLD/WTI/EURUSD/JPYUSD/AUDUSD/...`、`--market-code`、`--weeks`(分位窗口)、`--json`、`--from-file`(离线解析预下载文件)、`--list`(列品种);缓存到 `scripts/.cftc_cache`(默认 3 天,自动叠加前一年扩充历史)。取数铁律:只读官方公开文件,失败即报错,绝不杜撰。
 - `scripts/wgc_lbma_fetch.py` — **黄金 LBMA 代理(免费·无需 key)**:经 gold-api.com 取国际现货金/银(美元/盎司,紧贴 LBMA 定盘)`--symbol XAU|XAG`;WGC 黄金供需/央行购金与 LBMA 官方定盘因无免费 JSON API,附 `--manual` 标准化 WebFetch 手工取数指引(绝不杜撰数字)。
 - `scripts/opec_fetch.py` — **OPEC MOMR 原油报告(best-effort + 手工指引)**:尽力直连 OPEC 公开页抽取供需关键词,失败(网络/地域封锁,如本开发环境 opec.org 返回 403)则输出标准化 WebFetch 手工取数指引(全球需求增长/非 OPEC 供应/OPEC 产量/ORB 一揽子价);IEA MODS 为付费,附 KAPSARC 免费历史替代。绝不杜撰数字。
@@ -259,21 +263,21 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 `python scripts/cftc_fetch.py --symbol WTI --weeks 26`
 `python scripts/wgc_lbma_fetch.py --symbol XAU           # LBMA 金价现货代理(免费)`
 `python scripts/opec_fetch.py --manual                   # OPEC MOMR 手工取数指引`
-`python scripts/fedwatch_csv.py --csv "D:/workbuddy/输出文件/fedwatch_2026-09-03.csv"   # FedWatch 导出CSV解析`
-`python scripts/kline_read.py --csv "D:/workbuddy/输出文件/EURUSD_H1.csv" --symbol EURUSD --tf H1 --last 120 --json --html --out "D:/workbuddy/输出文件"`
+`python scripts/fedwatch_csv.py --csv "./output/fedwatch_2026-09-03.csv"   # FedWatch 导出CSV解析`
+`python scripts/kline_read.py --csv "./output/EURUSD_H1.csv" --symbol EURUSD --tf H1 --last 120 --json --html --out "./output"`
 `python scripts/kline_read.py --text "2026-08-20,1.0850,1.0890,1.0830,1.0880
 2026-08-21,1.0880,1.0920,1.0860,1.0915" --symbol EURUSD --tf D1 --last 60`
 `python scripts/kline_read.py --fetch --symbol USDJPY --api-key <TWELVEDATA_KEY>   # 未发K线时联网抓取15min/1H/4H/1D/1W并逐周期分析`
-`python scripts/kline_read.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --json --out "D:/workbuddy/输出文件"`
+`python scripts/kline_read.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --json --out "./output"`
 `python scripts/kline_fetch.py --symbol USOIL --interval 1h --api-key <TWELVEDATA_KEY>   # 单源单周期抓取(可输出CSV)`
 
 # 多周期共振(三维印证):周线+日线定方向,1H 定时机 —— 输出明确做多/做空/不交易 + ECharts 图表
-`python scripts/mtf_confluence.py --csv-w "D:/workbuddy/输出文件/USDJPY_W.csv" --csv-d "D:/workbuddy/输出文件/USDJPY_D.csv" --csv-h1 "D:/workbuddy/输出文件/USDJPY_H1.csv" --symbol USDJPY --html --json --out "D:/workbuddy/输出文件"`
-`python scripts/mtf_confluence.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --html --json --out "D:/workbuddy/输出文件"   # 未发K线时联网抓取 W/D/1H 并做共振判定`
+`python scripts/mtf_confluence.py --csv-w "./output/USDJPY_W.csv" --csv-d "./output/USDJPY_D.csv" --csv-h1 "./output/USDJPY_H1.csv" --symbol USDJPY --html --json --out "./output"`
+`python scripts/mtf_confluence.py --fetch --symbol XAUUSD --api-key <TWELVEDATA_KEY> --html --json --out "./output"   # 未发K线时联网抓取 W/D/1H 并做共振判定`
 
 
 # 持仓深度分析报告一键生成（v1.4.0）—— 已有持仓的全维度诊断报告
-`python "C:/Users/qa013/.workbuddy/skills/kingforex-skill/scripts/position_report.py" --symbol AUDJPY --direction SELL --lots 0.02 --entry 114.573 --sl 112.583 --tp 109.781 --account 574 --risk-pct 2.0 --out-dir "D:/workbuddy/输出文件/持仓分析_AUDJPY_2026-09-10"`
+`python "./scripts/position_report.py" --symbol AUDJPY --direction SELL --lots 0.02 --entry 114.573 --sl 112.583 --tp 109.781 --account 574 --risk-pct 2.0 --out-dir "./output/持仓分析_AUDJPY_2026-09-10"`
 
 
 ## 工具与数据源集成(权威渠道)
@@ -283,7 +287,7 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 - **宏观利率**:FRED(`DGS10`/`DFII10`/`T10YIE`)、美联储官网(点阵图/SEP)、**CME FedWatch(无免费 API:用 `scripts/fedwatch_csv.py` 解析手动导出的概率 CSV)**、**IMF SDMX 3.0 API(`scripts/imf_fetch.py`:IFS 实际有效汇率 `PRX_REER`/官方储备/货币总量、WEO 宏观预测,无需 key,需本地验证连通性)**、**World Bank Open Data API(`scripts/worldbank_fetch.py`:实际利率 `FR.INR.RINR`/CPI 通胀 `FP.CPI.TOTL.ZG`/GDP 增速 `NY.GDP.MKTP.KD.ZG`/官方汇率 `PA.NUS.FCRF`,无需 key)**。
 - **外汇**:**CFTC COT/TFF 持仓拥挤度(`scripts/cftc_fetch.py`:Managed Money(商品)/Leveraged Funds(外汇)投机净头寸、净头寸/OI、52 周历史分位拥挤度,免费无需 key、中国可直连 cftc.gov)**、**BIS SDMX v2 API(`scripts/bis_fetch.py`:政策利率 `WS_CBPOL` / 美元汇率 `WS_XRU` / 有效汇率 `WS_EER` / 全球流动性 `WS_GLI`,无需 key)**、**IMF SDMX 3.0 API(`scripts/imf_fetch.py`:COFER 美元储备份额——全球去美元化/美元信用结构性核心指标,无需 key,需本地验证连通性)**、**World Bank Open Data API(`scripts/worldbank_fetch.py`:实际利率 `FR.INR.RINR`/经常账户占 GDP `BN.CAB.XOKA.GD.ZS`/外储 `FI.RES.TOTL.CD`——利率平价(IRP)、中期汇率方向与 EM 脆弱性,无需 key)**、**实时行情 API(`scripts/live_market_fetch.py`:Frankfurter ECB 日参考汇率 `fx_ref`、exchangerate-api 150+ 货币 `fx_all`、新浪 USDCNY **真实时** `sina`,均无需 key)**、ECB/BoJ/BoE 官网、PBOC 中间价。
 - **黄金**:World Gold Council(供需/央行购金/ETF)、LBMA 定盘、CFTC 持仓、**`scripts/wgc_lbma_fetch.py`(gold-api.com 伦敦金现货代理 `XAU`/`XAG` 免费无需 key + WGC/LBMA 手工取数指引)**、**QuantGist API(`scripts/quantgist_fetch.py`:`news/radar` 地缘主题包含 GLD/XAUUSD、商品 ETF 快照 GLD 实时价,需 X-API-Key)**、**实时行情 API(`scripts/live_market_fetch.py`:gold-api.com 伦敦金 XAU 现货价 `gold`、新浪 hf_XAU **真实时** `sina`,均无需 key)**。
-- **原油**:**EIA v2 API(`scripts/eia_fetch.py`:周度库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),key 已配置 `scripts/.eia_key`)**、**`scripts/opec_fetch.py`(OPEC MOMR best-effort 直连 + WebFetch 手工取数指引:全球需求增长/非 OPEC 供应/OPEC 产量/ORB 一揽子价)**、IEA(付费 MODS,附 KAPSARC 免费历史替代)、API 补充、**QuantGist API(`scripts/quantgist_fetch.py`:`news/radar` 含 oil-supply/middle-east-risk/opec 主题与 CL/USO 受影响资产、商品 ETF 快照 USO,需 X-API-Key)**。
+- **原油**:**EIA v2 API(`scripts/eia_fetch.py`:周度库存 `WCRSTUS1` / 汽油总库存 `WGTSTUS1` / 馏分油库存 `WDISTUS1`(千桶)、WTI `RWTC`/Brent `RBRTE` 现货价(美元/桶),key 需自备,可存于 `scripts/.eia_key`)**、**`scripts/opec_fetch.py`(OPEC MOMR best-effort 直连 + WebFetch 手工取数指引:全球需求增长/非 OPEC 供应/OPEC 产量/ORB 一揽子价)**、IEA(付费 MODS,附 KAPSARC 免费历史替代)、API 补充、**QuantGist API(`scripts/quantgist_fetch.py`:`news/radar` 含 oil-supply/middle-east-risk/opec 主题与 CL/USO 受影响资产、商品 ETF 快照 USO,需 X-API-Key)**。
 - **跨市场**:TradingView 图表模板、用户"全球金融日报"JSON(复用 40 品种,免重复采集)。
 - **K 线历史(盘面分析用)**:当用户未发送 K 线时,**Twelve Data API(`scripts/kline_fetch.py` + `kline_read.py --fetch`)** 是中国大陆可直连、免翻墙的权威 OHLC 历史源,覆盖外汇/黄金/原油及 15min/1h/4h/1day/1week 五周期,需免费 API Key(环境变量 `TWELVEDATA_API_KEY` 或 `--api-key`)。抓取严格遵循**不编造铁律**:任一周期失败仅报告原因跳过,全部失败则明确告知"无法获取权威 K 线数据"并引导改用本地 CSV/文本,绝不估算价格。
 - **事件日历**:美联储日历、Trading Economics、Investing.com、**QuantGist API(`scripts/quantgist_fetch.py`:`calendar`/`events` 含 `actual/forecast/surprise`、宏数据 `macro/latest` CPI/NFP/FOMC,需 X-API-Key)**。
@@ -355,8 +359,8 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
 
 ## 密钥安全（EIA / FRED / QuantGist / Jin10）
 
-- **EIA key**:已写入 `scripts/.eia_key`(脚本同目录单行纯文本),**仅本地存在、不进入 `kingforex-skill.zip`、不写进脚本源码**。读取优先级:`--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装/迁移 skill 后需重新生成该文件或设置环境变量。
-- **FRED key**(模块一 宏观利率地基,`scripts/fred_fetch.py`):已写入 `scripts/.fred_key`(脚本同目录单行纯文本,本地文件、不进 zip);读取优先级:`--api-key` > 环境变量 `FRED_API_KEY` > `scripts/.fred_key`。免费注册 https://fredaccount.stlouisfed.org/apikeys。
+- **EIA key**:需自备 key 并写入 `scripts/.eia_key`(脚本同目录单行纯文本),**仅本地存在、不进入发布包、不写进脚本源码**。读取优先级:`--api-key` > 环境变量 `EIA_API_KEY` > `scripts/.eia_key`。用户重装/迁移 skill 后需重新生成该文件或设置环境变量。
+- **FRED key**(模块一 宏观利率地基,`scripts/fred_fetch.py`):需自备 key 并写入 `scripts/.fred_key`(脚本同目录单行纯文本,本地文件、不进 zip);读取优先级:`--api-key` > 环境变量 `FRED_API_KEY` > `scripts/.fred_key`。免费注册 https://fredaccount.stlouisfed.org/apikeys。
 - **QuantGist key**:通过环境变量 `QUANTGIST_API_KEY` 或 `--api-key` 传入,同样不硬编码进脚本与 zip。
 - **Twelve Data key**(K 线历史抓取,`scripts/kline_fetch.py` / `kline_read.py --fetch`):三种方式提供——环境变量 `TWELVEDATA_API_KEY` > `--api-key` > 脚本同目录 `scripts/.td_key`(单行纯文本,本地文件、不进 zip);读取优先级按此顺序。免费注册 https://twelvedata.com 获取。无 Key 时 `--fetch` 仅提示降级方案,绝不编造价格。
 - **Jin10 MCP token**(实时行情/快讯/财经日历,`scripts/jin10_mcp.py` + MCP 客户端):Bearer Token 存于 `scripts/.jin10_key`(脚本用,单行纯文本,本地文件、不进 zip)与 MCP 配置 `headers.Authorization`(WorkBuddy MCP 客户端用);读取优先级:`--token` > 环境变量 `JIN10_TOKEN` > `scripts/.jin10_key`。不硬编码进脚本源码与 zip。

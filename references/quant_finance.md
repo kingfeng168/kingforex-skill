@@ -247,7 +247,7 @@ long_run_vol = (omega / (1 - alpha - beta)) ** 0.5   # 长期无条件波动率
 
 **用法**：
 ```bash
-python scripts/optimal_f.py --csv "D:/workbuddy/输出文件/trades_pnl.csv" --mc 10000
+python scripts/optimal_f.py --csv "./output/trades_pnl.csv" --mc 10000
 python scripts/optimal_f.py --csv trades.csv --json   # 结构化输出
 ```
 

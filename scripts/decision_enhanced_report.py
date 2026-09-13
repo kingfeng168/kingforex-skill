@@ -10,9 +10,9 @@ v2.3: 评分卡4x2/宏观大事列表化/凯利标的全适配下拉/引用倒�
 """
 import os, csv, json, math
 
-OUT = "D:/workbuddy/输出文件/行情分析_20260911"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output", "行情分析_20260911")
 NOW = "2026-09-11 17:05 GMT+8"
-SKILL_CSS = "C:/Users/qa013/.workbuddy/skills/kingforex-skill/assets/decision_enhanced_sample.html"
+SKILL_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "decision_enhanced_sample.html")
 
 # ---------- 账户状态 (v2.1 参考情景: 已部分管理的 AUDJPY 空单) ----------
 ACC = {
@@ -145,6 +145,18 @@ KD = {"XAUUSD": "kline_XAUUSD_1d.csv", "EURUSD": "kline_EURUSD_1d.csv",
       "GBPUSD": "kline_GBPUSD_1d.csv", "USDJPY": "kline_USDJPY_1d.csv",
       "AUDUSD": "kline_AUDUSD_1d.csv", "AUDJPY": "kline_AUDJPY_1d.csv"}
 klines = {s: load_kline(os.path.join(OUT, p)) for s, p in KD.items()}
+
+_missing = [s for s, _r in klines.items() if not _r]
+if _missing:
+    raise SystemExit(
+        "[数据缺失] 未找到以下品种的日线 CSV: %s\n"
+        "  预期目录: %s\n"
+        "  预期文件名:\n    %s\n"
+        "  获取方式: python scripts/kline_fetch.py --symbol <SYM> --interval 1day "
+        "--api-key <KEY> --out \"%s\"\n"
+        "  (需自备 Twelve Data key;文件命名必须与脚本顶部 KD 字典一致)"
+        % (", ".join(_missing), OUT,
+           "\n    ".join(KD[s] for s in _missing), OUT))
 
 def chart_candlestick(sym, rows, marklines=None, title=None):
     dates = [r[0] for r in rows]
