@@ -37,6 +37,24 @@ import os
 import re
 import sys
 
+# ---------- ECharts 离线内嵌: 本地库优先, 缺失回退 CDN ----------
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>'
+
+
+def _inline_echarts(html_text):
+    """将 HTML 中的 ECharts CDN 外链替换为技能资产内的本地源码(离线/大陆网络稳), 资产缺失时保持 CDN 回退。"""
+    if _ECHARTS_CDN not in html_text:
+        return html_text
+    _p = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "echarts.min.js"))
+    try:
+        with open(_p, encoding="utf-8") as _ef:
+            _esrc = _ef.read()
+        if _esrc and "</script>" not in _esrc:
+            return html_text.replace(_ECHARTS_CDN, "<script>/* ECharts v5 inlined (offline-safe) */\n" + _esrc + "\n</script>")
+    except Exception:
+        pass
+    return html_text
+
 DEFAULT_OUT = os.environ.get("KINGFOREX_OUT", "./output")
 
 
@@ -991,7 +1009,7 @@ chart.setOption({backgroundColor:'#0b0e14',
         json.dumps(cats, ensure_ascii=False),
         json.dumps(marks, ensure_ascii=False),
     )
-    return html
+    return _inline_echarts(html)
 
 
 # ----------------------------- 入口 -----------------------------

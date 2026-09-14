@@ -1,5 +1,18 @@
 # kingforex-skill 更新日志
 
+## v2.4.5 — ECharts 离线内嵌根治（图表空白 / CDN 外链不可达）· 2026-09-14
+
+**对应需求：09-14 决策增强版报告在大陆网络 / 预览沙箱下 13 张 ECharts 图表全部空白。根因：HTML 头部引用 cdn.jsdelivr.net 外链，该域名在大陆网络与 WorkBuddy 预览环境下不可达。单文件修复验证后，将同一方案根治到技能全部图表链路。**
+
+- **修复范围（7 个脚本 + 2 个资产）**：
+  - **类一 · loader 模式（4 个决策增强版生成器）**：`decision_enhanced_report.py` / `decision_enhanced_report_20260912.py` / `decision_enhanced_report_v24.py` / `decision_enhanced_report_v241.py` —— 与 v2.4.2 同款「本地内嵌优先、CDN 回退」加载块（候选路径：输出目录 → `assets/echarts.min.js`），HTML 头部 CDN 行改为 `""" + _ECHARTS_TAG + """` 拼接。
+  - **类二 · 后置替换（2 个工具脚本）**：`kline_read.py` / `mtf_confluence.py` 的 HTML 为 %-格式化模板，ECharts 源码含 `%` 不能直接拼入模板串 → 新增模块级 `_inline_echarts(html)` helper，在 `return html` 前把 CDN 标签替换为内嵌块。kline_read 的 `to_html` 与 mtf 的 `to_html_mtf` 主输出均已套用（mtf 另两处 `return html` 为表格片段，不含 CDN，无需处理）。
+  - **类三 · 模板链路**：`position_report.py` 在 `fill_template` 之后调用 `_inline_echarts()`（模板 `position_report_template.html` 的 CDN 行保留为回退标记，避免 `__KEY__` 占位替换与 1MB 库源码碰撞）；静态样例 `assets/decision_enhanced_sample.html` 直接内嵌完整库（91KB → 1.12MB，自包含可离线查看；它同时是各生成器的 CSS 来源，`<style>` 切片提取不受影响，已回归验证）。
+  - **资产**：`assets/echarts.min.js`（v5.6.0，1,030,185 字符，已验证不含 `</script>`）为全技能唯一图表库来源。
+- **验证**：7 个改动 py 全部 `py_compile` 通过；v241 loader 段沙箱执行确认内嵌生效；`kline_read.analyze → to_html` 合成数据端到端跑通（输出 1.04MB 自包含 HTML，`cdn.jsdelivr.net` 零残留）；CRLF/LF 行尾风格逐文件保持。
+- **踩坑记录**：kline_read 补丁首版先插 helper 再计数 `    return html`，helper 内 `return html_text` 含该子串导致计数 4≠1 断言中断（save 未执行、文件无损坏）→ 改为**先替换 return 再插 helper**；mtf / position_report 同理按上下文锚点先替换后插入。
+- **终态 CDN 分布**：各 py 保留 1 处 CDN 字符串作为回退常量（kline_read / mtf 为 2 处：模板行 + helper 常量，运行时均被内嵌替换），`decision_enhanced_sample.html` 为 0。新生成 HTML 的合格标准：`cdn.jsdelivr.net` 出现 0 次。
+
 ## v2.4.4 — 跨机迁移加固（exposure CLI 崩溃 / openpyxl 硬依赖 / 打包配套）· 2026-09-13
 
 **对应需求：把本技能完整迁移到另一台电脑上直接可用。为此对全量脚本做换机可移植性改造，并在新机自检中抓到 2 个新缺陷。**

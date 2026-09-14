@@ -57,6 +57,24 @@ if _HERE not in sys.path:
 import kline_read as kr          # parse_csv / parse_text / analyze / ema / atr
 import kline_fetch as kf          # fetch_one
 
+# ---------- ECharts 离线内嵌: 本地库优先, 缺失回退 CDN ----------
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>'
+
+
+def _inline_echarts(html_text):
+    """将 HTML 中的 ECharts CDN 外链替换为技能资产内的本地源码(离线/大陆网络稳), 资产缺失时保持 CDN 回退。"""
+    if _ECHARTS_CDN not in html_text:
+        return html_text
+    _p = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "echarts.min.js"))
+    try:
+        with open(_p, encoding="utf-8") as _ef:
+            _esrc = _ef.read()
+        if _esrc and "</script>" not in _esrc:
+            return html_text.replace(_ECHARTS_CDN, "<script>/* ECharts v5 inlined (offline-safe) */\n" + _esrc + "\n</script>")
+    except Exception:
+        pass
+    return html_text
+
 # ----------------------------------------------------------------------------
 # 常量
 # ----------------------------------------------------------------------------
@@ -981,7 +999,7 @@ footer{margin-top:40px;color:var(--mut);font-size:12px;text-align:center;border-
         "zones": zone_rows, "atrtxt": atr_txt, "atrjs": atr_js, "js": "".join(js_parts),
         "plan": plan, "tfdiff": tf_diff_rows,
     }
-    return html
+    return _inline_echarts(html)
 
 
 

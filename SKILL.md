@@ -307,6 +307,11 @@ description: "手工外汇/贵金属/大宗商品现货交易者的宏观交易�
   - **HTML 与 MD 双版本必须格式一致**(章节、表格、数值、结论一一对应);数值统一保留 2 位小数;结论禁用"可能 / 或许"等模糊词。
   - 触发任何分析/报告生成前,先 `Read assets/position_report_template.html` 套骨架,再填数——**禁止脱离该模板自由发挥版面**。
 
+- **【图表离线保障(v2.4.5 新增)】所有含 ECharts 图表的 HTML 输出一律「本地内嵌优先、CDN 回退」**:
+  - 技能资产 `assets/echarts.min.js`(v5.6.0, 1.03MB)为唯一图表库来源;`decision_enhanced_report*.py`(loader 拼接)、`position_report.py` / `kline_read.py` / `mtf_confluence.py`(`_inline_echarts()` 后置替换)均已内置该策略,产出 HTML 自动内嵌完整 ECharts 源码,大陆网络 / 离线 / 预览沙箱下图表照常渲染,不依赖 cdn.jsdelivr.net。
+  - **合格标准**:产出 HTML 中 `cdn.jsdelivr.net` 出现 0 次;仅当 `assets/echarts.min.js` 缺失时才回退 CDN 并打印 `ECharts: CDN fallback` 警告。
+  - 新增任何图表类生成器时,必须复用同一模式(loader 拼接或 `_inline_echarts()` 后置替换;`%`-格式化模板只能用后者,严禁把含 `%` 的库源码直接拼入模板串),禁止裸写 CDN `<script src>`。
+
 - **默认投资标的(v1.4.2 新增)**:当用户未特别指定货币对或商品时,多品种交易计划默认覆盖以下 **7 个固定标的 + 1 个随机标的**,共 8 个:
   - **固定 7 标**:金(XAUUSD)、银(XAGUSD)、美元(DXY / USDX)、欧元(EURUSD)、英镑(GBPUSD)、日元(USDJPY)、WTI 原油(USOIL/CL)。
   - **随机 1 标**:当日/当期**利差最大的货币对**(基于 10Y 国债利差计算,从 G10 高息货币兑日元中挑选最大者;常见为 USDJPY/AUDJPY/NZDJPY,与固定标的重复时自动替换为次高者,确保不重复)。

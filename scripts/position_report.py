@@ -45,6 +45,23 @@ ASSETS_DIR = os.path.join(SKILL_DIR, "assets")
 TEMPLATE_HTML = os.path.join(ASSETS_DIR, "position_report_template.html")
 PYTHON_BIN = sys.executable
 
+# ---------- ECharts 离线内嵌: 本地库优先, 缺失回退 CDN ----------
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>'
+
+
+def _inline_echarts(html_text):
+    """将 HTML 中的 ECharts CDN 外链替换为技能资产内的本地源码(离线/大陆网络稳), 资产缺失时保持 CDN 回退。"""
+    if _ECHARTS_CDN not in html_text:
+        return html_text
+    try:
+        with open(os.path.join(ASSETS_DIR, "echarts.min.js"), encoding="utf-8") as _ef:
+            _esrc = _ef.read()
+        if _esrc and "</script>" not in _esrc:
+            return html_text.replace(_ECHARTS_CDN, "<script>/* ECharts v5 inlined (offline-safe) */\n" + _esrc + "\n</script>")
+    except Exception:
+        pass
+    return html_text
+
 CST = timezone(timedelta(hours=8))
 
 
@@ -515,7 +532,7 @@ def render_html_report(args, data, kline_data, metrics_daily, metrics_h1,
         "h1_ohlc": json.dumps(kline_data["h1"]["ohlc"]),
     }
 
-    return fill_template(template, render_data)
+    return _inline_echarts(fill_template(template, render_data))
 
 
 def render_md_report(args, data, metrics_daily, metrics_h1, current_price, kline_summary):

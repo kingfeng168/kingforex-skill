@@ -577,10 +577,25 @@ DISCIPLINE6 = [
     ("心理纪律", ["不贪最后一段: 带走利润才是目标","不报复市场: 亏了就停, 不追","只应对, 不预测: 预案比预判重要","错过即纪律: 不属于你的行情不心疼"]),
 ]
 
+# ---------- ECharts 加载策略: 优先本地内嵌(离线/大陆网络稳), 缺失时回退 CDN ----------
+_SKILL_ASSETS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets"))
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>'
+_ECHARTS_TAG = _ECHARTS_CDN
+for _ep in (os.path.join(OUT, "echarts.min.js"), os.path.join(_SKILL_ASSETS, "echarts.min.js")):
+    if os.path.exists(_ep):
+        with open(_ep, encoding="utf-8") as _ef:
+            _esrc = _ef.read()
+        if _esrc and "</script>" not in _esrc:
+            _ECHARTS_TAG = "<script>/* ECharts v5 inlined (offline-safe) */\n" + _esrc + "\n</script>"
+            print("ECharts: inlined from", _ep)
+            break
+if _ECHARTS_TAG is _ECHARTS_CDN:
+    print("ECharts: CDN fallback (local echarts.min.js not found)")
+
 # ===================== HTML 头部 =====================
 html = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <title>决策增强版 v2.4.1 · 今日行情分析 · 8标的 · kingforex-skill</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+""" + _ECHARTS_TAG + """
 """ + style_block + """</head><body><div class="container">
 <div class="header">
 <h1>📊 今日行情分析 · 决策增强版 v2.4.1</h1>
