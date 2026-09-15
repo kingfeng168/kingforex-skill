@@ -1,5 +1,33 @@
 # kingforex-skill 更新日志
 
+## v2.4.7 — 新增止损/止盈合理性评估脚本（sl_tp_evaluate.py）· 2026-09-14
+
+**对应需求：用户要求技能增加"止损止盈合理性评估"能力。触发场景为实盘 AUDJPY 空单把 SL 从盈利区(113.284)上移到入场上方(114.90)的离场纪律诊断。**
+
+- **新增 `scripts/sl_tp_evaluate.py`（纯标准库,可选实时价）**：
+  - 输入 `--direction BUY/SELL --entry --sl --tp`,可选 `--current`(或 `--symbol` 自动经 AllRatesToday 取实时价)、`--equity --lot --atr --account-currency`。
+  - 输出：pip 距离(入场→SL / 入场→TP / 当前→SL / 当前→TP)、初始 R:R、剩余 R:R(持仓已盈利时真正要盯的 R:R)、浮盈(pips + 账户币 + 权益占比)、单笔美元风险(对比 2% 铁律)、SL 方向校验、ATR 宽度 sanity(可选)。
+  - **三级判定 REASONABLE / CAUTION / UNREASONABLE** + 逐条理由,重点防范两类典型错误:① 反向移动止损(盈利单把 SL 从盈利侧移回亏损侧,回吐全部浮盈);② 剩余 R:R 崩塌(用极大风险博极小剩余空间)。
+  - 自动识别"SL 已触发"(价格已越过 SL → 持仓已平仓锁定利润),此时跳过剩余 R:R 误判,直接判 REASONABLE 并提示离场纪律成立。
+  - 美元风险换算:账户=USD 且品种为 JPY/XAU 等时经 AllRatesToday 取 USDJPY 折算;非 USD 账户且报价币≠账户币时降级跳过 $ 指标并提示。
+  - 支持 `--json` / `--out`(`.txt`/`.json`)。`py_compile` 通过;四维用例验证(CASE A 反向移动→UNREASONABLE / CASE B 已锁利→REASONABLE / CASE C 正常防护止损→CAUTION / CASE D 自动取价→CAUTION)结论均符合预期。
+- **文档同步**：SKILL.md 脚本表新增 `sl_tp_evaluate.py` 条目 + 调用示例;README 脚本目录注释 `34 → 35`;版本号 `v2.4.6 → v2.4.7`。本轮仅更新技能(开源副本 + 已安装副本),不动 EXE。
+- **计数变更**：净脚本数 **34 → 35**。
+
+## v2.4.6 — 数据源增删（移除 iTick · 新增 Frankfurter + AllRatesToday · IMA 知识库标注）· 2026-09-14
+
+**对应需求：iTick key 过期需删除；新增 AllRatesToday 实时中间价与 Frankfurter ECB 日参考汇率双源；历史行情复盘可参考用户 IMA 知识库；整理数据源清单。本轮仅更新技能（开源副本 + 已安装副本），不重建 EXE。**
+
+- **删除 iTick 数据源（key 过期）**：
+  - 删除 `scripts/itick_fetch.py`（两副本：开源 + 已安装 `~/.workbuddy/skills/kingforex-skill/`）。
+  - 同步清理所有文档对 iTick 的引用：SKILL.md（description / 脚本表 / 示例 / 期货分析数据源 / 密钥管理段 / 原则清单 / position_report 调用链）、README.md（数据源列表 / 密钥表 / 脚本计数）、data_sources.md（§7.12 整节改为「已移除」+ 替代源清单；§7.13/§7.15 去 iTick；§7.6 域名 `api.frankfurter.app` → `api.frankfurter.dev`）。
+  - **修复脚本硬依赖**（否则删文件后直接崩溃）：`position_report.py` 的 `fetch_quote` 由 iTick 改为 **AllRatesToday 实时中间价**（`--source <base> --target <quote> --json`，以实时 mid 为 price、上一交易日 mid 推算 change/chg_pct，open/high/low 以 price 兜底）；`futures_analysis.py` 的 `_pull_gold` 去掉 `import itick_fetch`，现货端走 goldprice.dev（可选 qveris 现货交叉验证），GC 期货端因无免费源改为 `basis --fut` 手动传入并明确提示。两脚本 `py_compile` 通过、无残留 `import itick_fetch`。
+- **新增 Frankfurter（`scripts/frankfurter_fetch.py`，免 key）**：ECB 官方每日参考汇率，`https://api.frankfurter.dev/v1`（旧 `.app` 已 301 失效），30 主权法币、仅工作日、无 XAU；子命令 `latest`/`date`/`timeseries`/`currencies`。服务**日级外汇研判**，与 AllRatesToday 实时中间价互补。data_sources.md 新增 §7.17。
+- **新增 AllRatesToday（`scripts/allratestoday_fetch.py`，Bearer Token）**：实时银行间中间价（约 60 秒刷新、160+ 法币、无 XAU），`https://allratestoday.com/api`；子命令 `latest`/`history`/`series`；key 优先级 `--api-key` > `ART_KEY` > `scripts/.art_key`（已落盘 `.art_key` 两副本，不进 zip）。服务**盘中实时监控**，与 Frankfurter 互补。data_sources.md 新增 §7.18。
+- **IMA 知识库标注**：历史行情/复盘可参考用户腾讯 IMA 知识库，引用须标注 `[源: IMA 知识库 | 截至: YYYY-MM-DD]`，不作唯一权威源（以实时 API 为准）；写入 data_sources.md §7.7 与 SKILL.md「K 线历史」节。
+- **计数变更**：净脚本数 **33 → 34**（−iTick +Frankfurter +AllRatesToday）。README 脚本目录注释、SKILL.md 脚本表、data_sources.md 脚本清单同步。
+- **验证**：frankfurter_fetch / allratestoday_fetch 实跑三模式通过（AllRatesToday `AUD->JPY 110.104` 实时）；position_report / futures_analysis 编译通过；全目录 grep 确认无残留 `import itick_fetch`。
+
 ## v2.4.5 — ECharts 离线内嵌根治（图表空白 / CDN 外链不可达）· 2026-09-14
 
 **对应需求：09-14 决策增强版报告在大陆网络 / 预览沙箱下 13 张 ECharts 图表全部空白。根因：HTML 头部引用 cdn.jsdelivr.net 外链，该域名在大陆网络与 WorkBuddy 预览环境下不可达。单文件修复验证后，将同一方案根治到技能全部图表链路。**

@@ -9,7 +9,7 @@
 
 调用链：
   position_report.py
-    → itick_fetch.py  (实时报价)
+    → allratestoday_fetch.py  (实时银行间中间价报价)
     → kline_fetch.py  (日线 + 1H K 线)
     → quant_metrics.py (Sharpe/Hurst/VaR/Z)
     → bis_fetch.py    (央行政策利率)
@@ -27,7 +27,7 @@
     --account 574 --risk-pct 2.0 \
     --out-dir "./output/持仓分析_2026-09-10"
 
-依赖：同 skill 内其他脚本（itick_fetch / kline_fetch / quant_metrics / bis_fetch /
+依赖：同 skill 内其他脚本（allratestoday_fetch / kline_fetch / quant_metrics / bis_fetch /
       fred_fetch / jin10_mcp / mtf_confluence）。
 """
 import argparse
@@ -86,45 +86,64 @@ def run_script(args, timeout=120):
 
 # ============ 数据采集 ============
 def fetch_quote(symbol):
-    """iTick 拉取实时报价，返回 {price, last_close, open, high, low, change, chg_pct}"""
-    out = run_script([os.path.join(SCRIPTS_DIR, "itick_fetch.py"),
-                      "quote", "--asset", "forex", "--code", symbol], timeout=30)
-    # iTick 输出形如：
-    #   iTick forex 报价  region=GB code=AUDJPY
-    #   {
-    #     "s": "AUDJPY",
-    #     "p": 110.831,
-    #     ...
-    #   }
-    # 找第一个 { 开始的 JSON 块
+    """AllRatesToday 实时银行间中间价(替代已移除的 iTick),返回 {price, last_close, open, high, low, change, chg_pct}。
+
+    说明: AllRatesToday 仅提供实时 mid 单值(约 60 秒刷新),不含 OHLC/日内涨跌;
+          故 price=实时 mid,last_close=上一交易日 mid(用于算 change/chg_pct),
+          open/high/low 以 price 兜底(无日内高低数据)。贵金属请用 goldprice.dev / qveris。
+    """
+    base, quote = symbol[:3], symbol[3:]
+    out = run_script([os.path.join(SCRIPTS_DIR, "allratestoday_fetch.py"),
+                      "--source", base, "--target", quote, "--json"], timeout=30)
+    # AllRatesToday --json 输出形如:
+    #   [{"source":"AUD","target":"JPY","rate":110.831,"time":"2026-09-14T05:51:43+0000"}]
+    price = None
     for i, line in enumerate(out.split("\n")):
-        if line.strip().startswith("{"):
-            # 收集从这一行开始直到匹配的 }
+        if line.strip().startswith("["):
             blob_lines = []
-            brace_count = 0
+            bracket = 0
             for j in range(i, len(out.split("\n"))):
                 cur = out.split("\n")[j]
                 blob_lines.append(cur)
-                brace_count += cur.count("{") - cur.count("}")
-                if brace_count == 0 and "{" in "".join(blob_lines):
+                bracket += cur.count("[") - cur.count("]")
+                if bracket == 0 and "[" in "".join(blob_lines):
                     break
             blob = "\n".join(blob_lines)
             try:
-                d = json.loads(blob)
-                return {
-                    "price": float(d.get("p", 0)),
-                    "last_close": float(d.get("ld", 0)),
-                    "open": float(d.get("o", 0)),
-                    "high": float(d.get("h", 0)),
-                    "low": float(d.get("l", 0)),
-                    "change": float(d.get("ch", 0)),
-                    "chg_pct": float(d.get("chp", 0)),
-                }
+                arr = json.loads(blob)
+                if isinstance(arr, list) and arr:
+                    price = float(arr[0].get("rate", 0))
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"[WARN] 解析 {symbol} 报价 JSON 失败: {e}", file=sys.stderr)
-                continue
-    print(f"[WARN] {symbol} 报价输出无有效 JSON", file=sys.stderr)
-    return None
+            break
+    if price is None or price == 0:
+        print(f"[WARN] {symbol} 报价输出无有效 JSON", file=sys.stderr)
+        return None
+    # 上一交易日 mid(用于算 change),失败则兜底为 0 涨跌
+    last_close = price
+    prev = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    pout = run_script([os.path.join(SCRIPTS_DIR, "allratestoday_fetch.py"),
+                       "--source", base, "--target", quote, "--time", prev, "--json"], timeout=30)
+    for i, line in enumerate(pout.split("\n")):
+        if line.strip().startswith("["):
+            try:
+                arr = json.loads(line[line.index("["):])
+                if isinstance(arr, list) and arr:
+                    last_close = float(arr[0].get("rate", price))
+            except (json.JSONDecodeError, ValueError):
+                pass
+            break
+    change = round(price - last_close, 4)
+    chg_pct = round(change / last_close * 100, 2) if last_close else 0.0
+    return {
+        "price": price,
+        "last_close": last_close,
+        "open": price,
+        "high": price,
+        "low": price,
+        "change": change,
+        "chg_pct": chg_pct,
+    }
 
 
 def fetch_kline(symbol, interval, out_path):
@@ -435,7 +454,7 @@ def render_html_report(args, data, kline_data, metrics_daily, metrics_h1,
 
     # 数据源
     data_sources = (
-        f"<tr><td>{symbol} / USDJPY / AUDUSD / XAUUSD 报价</td><td>iTick forex API</td><td>{ts_full}</td></tr>"
+        f"<tr><td>{symbol} / USDJPY / AUDUSD / XAUUSD 报价</td><td>AllRatesToday 实时中间价</td><td>{ts_full}</td></tr>"
         "<tr><td>RBA 4.35% / BoJ 1.00%</td><td>BIS WS_CBPOL</td><td>2026-08-27</td></tr>"
         "<tr><td>美 10Y 4.80% / 2s10s 0.40%</td><td>FRED DGS10 / T10Y2Y</td><td>2026-09-09</td></tr>"
         "<tr><td>经济日历 / 财经新闻</td><td>jin10 list_calendar + list_news</td><td>" + ts_short.split(" ")[0] + "</td></tr>"
@@ -545,7 +564,7 @@ def render_md_report(args, data, metrics_daily, metrics_h1, current_price, kline
     md = f"""# {symbol} 持仓深度分析（kingforex-skill v1.4.0）
 
 > 📅 **时间**：{ts}
-> 📊 **数据源**：iTick forex API · BIS WS_CBPOL · FRED · jin10 · Twelve Data
+> 📊 **数据源**：AllRatesToday 实时中间价 · BIS WS_CBPOL · FRED · jin10 · Twelve Data
 > 🛠 **框架**：三维印证（宏观/跨市场/盘面）+ 量化验证
 
 **🟢 持仓健康度：82/100** ｜ **顺势单** ｜ **Hurst 0.927 强趋势**
@@ -649,7 +668,7 @@ def main():
     print(f"[1/6] 拉取 {symbol} 实时报价...")
     q = fetch_quote(symbol)
     if not q:
-        print(f"[ERROR] 无法获取 {symbol} 报价，请检查 itick_fetch.py", file=sys.stderr)
+        print(f"[ERROR] 无法获取 {symbol} 报价，请检查 allratestoday_fetch.py 与 scripts/.art_key", file=sys.stderr)
         sys.exit(1)
     current_price = round(q["price"], 5)
 

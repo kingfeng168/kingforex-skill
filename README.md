@@ -1,8 +1,8 @@
 # kingforex-skill
 
-**当前版本：v2.4.4** · [更新日志 CHANGELOG.md](CHANGELOG.md) · MIT License
+**当前版本：v2.4.7** · [更新日志 CHANGELOG.md](CHANGELOG.md) · MIT License
 
-> 版本号即 Git tag 号（如 tag `v2.4.4`）。本仓库自 v2.4.4 起统一版本线，不再维护独立的发布序号。
+> 版本号即 Git tag 号（如 tag `v2.4.7`）。本仓库自 v2.4.4 起统一版本线，不再维护独立的发布序号。
 
 外汇 / 贵金属 / 大宗商品现货交易者的**宏观交易体系与纪律框架**技能。覆盖「宏观利率地基 → 盘前计划筛选 → 入场执行 → 持仓管理 → 离场 → 复盘 → 心理纪律」全链路，外加外汇 / 黄金 / 原油专项、跨市场联动、市场微观结构、风险组合管理与工具数据源九大模块。
 
@@ -16,7 +16,7 @@
 - **持仓分析报告生成器**（`scripts/position_report.py`）：输入持仓与账户，自动串联行情 / K 线 / 量化 / 央行利率 / 经济日历，输出九大节 HTML + MD 报告。
 - **决策增强报告生成器**（`scripts/decision_enhanced_report*.py`）：v2.3 冻结模板 → v2.4.x 数据注入，输出 **23 节 / 13 图** HTML + MD + Excel 复盘模板，含评分卡、情景预案、凯利交互计算器、相关性热力图、风险仪表盘、动态止损、信号回测、**数据一致性校验报告（10 项）**。
 - **全流程编排器**（`scripts/report_agent_v3.py`）：数据采集 → 校验 → 指标 → 评分 → 决策 → 持仓管理 → 一致性校验 → 报告渲染，八步流水线一键执行。
-- **权威数据源脚本**（`scripts/*.py`）：FRED、EIA、BIS、IMF COFER、World Bank、CFTC COT、WGC/LBMA、iTick、goldprice.dev、OilPriceAPI、Jin10、FedWatch 等，全部支持 `--out ./output/xxx.csv`。
+- **权威数据源脚本**（`scripts/*.py`）：FRED、EIA、BIS、IMF COFER、World Bank、CFTC COT、WGC/LBMA、Frankfurter、AllRatesToday、goldprice.dev、OilPriceAPI、Jin10、FedWatch 等，全部支持 `--out ./output/xxx.csv`。
 - **时间核对与数据鲜度铁律**（v1.2.2 起每次调用第一动作）：先核对当下北京时间，再取最新可用数据，输出带 `[源 | 截至 YYYY-MM-DD HH:MM TZ]` 时间戳，禁止以旧充新。
 
 ## 风控与纪律铁律
@@ -45,7 +45,7 @@ kingforex-skill/
 ├── references/              # 18 份方法论参考（宏观利率 / 外汇 / 黄金 / 原油 / 跨市场 /
 │                            #   微观结构 / 资金管理 / 风险心理 / 多周期共振 / 量化金融 /
 │                            #   K 线解读 / 指标 / 数据源 / 持仓报告 / v3 规范 …）
-├── scripts/                 # 33 个脚本（计算引擎 / 量化指标 / 盘面解读 / 多周期共振 /
+├── scripts/                 # 35 个脚本（计算引擎 / 量化指标 / 盘面解读 / 多周期共振 /
 │                            #   各数据源抓取 / 仓位与风控 / 报告生成器）
 └── assets/                  # 6 份模板（决策增强 HTML 样例 / 持仓报告模板 / 盘前计划 /
                              #   情景 / 交易日志 / 分析→策略）
@@ -87,7 +87,7 @@ git clone https://github.com/kingfeng168/kingforex-skill.git \
 | FRED（宏观利率） | `FRED_API_KEY` | `scripts/.fred_key` | fredaccount.stlouisfed.org |
 | Twelve Data（K 线） | `TWELVEDATA_API_KEY` | `scripts/.td_key` | twelvedata.com |
 | Jin10（实时行情） | `JIN10_TOKEN` | `scripts/.jin10_key` | jin10.com |
-| iTick（外汇/贵金属） | `ITICK_API_KEY` | `scripts/.itick_key` | itick.org |
+| AllRatesToday（实时中间价） | `ART_KEY` | `scripts/.art_key` | allratestoday.com |
 | goldprice.dev | `GOLDPRICE_API_KEY` | `scripts/.goldprice_key` | goldprice.dev |
 | OilPriceAPI | `OILPRICEAPI_KEY` | `scripts/.oilprice_key` | oilpriceapi.com |
 

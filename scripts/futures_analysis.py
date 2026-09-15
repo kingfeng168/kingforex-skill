@@ -3,8 +3,8 @@
 """
 期货分析工具:期现结构分析(基差/期限结构) + 期货价差分析(跨期/跨品种)。
 
-仅依赖 Python 标准库。可纯输入计算,亦可 --pull 直连新数据源(iTick / goldprice.dev /
-OilPriceAPI)实时取数后分析。
+仅依赖 Python 标准库。可纯输入计算,亦可 --pull 直连新数据源(goldprice.dev /
+OilPriceAPI,期货端如 GC 经 qveris 现货交叉验证或手动 --fut)实时取数后分析。
 
 === 一、期现结构分析(spot-futures structure / basis) ===
 输入:现货价 spot + N 个期货合约定价(含到期天数或年份)。
@@ -29,7 +29,7 @@ OilPriceAPI)实时取数后分析。
   python futures_analysis.py spread --a WTI:91.97 --b BRENT:95.98
   # 直连实时:原油 WTI-Brent 价差(OilPriceAPI)
   python futures_analysis.py pull --kind oil
-  # 直连实时:黄金期现结构(goldprice.dev 现货 + iTick GC 期货)
+  # 直连实时:黄金期现结构(goldprice.dev 现货,GC 期货需手动 --fut 或 qveris 现货交叉验证)
   python futures_analysis.py pull --kind gold
 """
 import os
@@ -154,32 +154,44 @@ def _pull_oil():
 
 
 def _pull_gold():
-    """实时黄金:现货(goldprice.dev) vs 期货 GC(iTick)。"""
+    """实时黄金期现结构:现货端(goldprice.dev,可选 qveris 现货交叉验证)自动取;期货 GC 端需手动提供。
+
+    说明: 原 iTick GC 期货源已移除(key 过期)。当前无免费 GC 期货实时源,故期货端请改用
+          basis 子命令手动传入 --fut(如 --fut GC_front:2410:30)完成完整期现结构计算。
+    """
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import goldprice_fetch as gp
-    import itick_fetch as it
     gkey = gp._read_local_key()
     spot = None
     if gkey:
         d = gp.fetch("XAU-USD-SPOT", gkey)
         if isinstance(d, dict) and "price" in d:
             spot = float(d["price"])
-    ikey = it._read_local_key()
-    fut = None
-    if ikey:
-        fd = it._get("/future/quote", ikey, it.DEFAULT_BASE, {"region": "US", "code": "GC"})
-        if isinstance(fd, dict) and "data" in fd:
-            fut = float(fd["data"].get("p") or fd["data"].get("price"))
-    if spot is None or fut is None:
-        miss = []
-        if spot is None: miss.append("现货(goldprice.dev 未取到/Cloudflare 拦截)")
-        if fut is None: miss.append("期货 GC(iTick 未取到/限频)")
-        return {"_error": "partial", "detail": "; ".join(miss),
-                "spot": spot, "futures_GC": fut,
-                "hint": "可改用 basis 子命令手动传入 --spot / --fut"}
-    res = analyze_basis(spot, [("GC_front", fut, 30)])
-    res["note"] = "黄金期现结构:单一近月合约视角(基差=现货−GC期货);完整曲线需多合约 --fut 输入。"
-    res["as_of"] = datetime.now(timezone.utc).isoformat()
+    # 可选 qveris 现货交叉验证(不强制,失败不影响主流程)
+    qv_spot = None
+    try:
+        import qveris_fetch as qv
+        tok = qv._read_token(argparse.Namespace(api_key=None))
+        if tok:
+            cli = qv.MCPClient(tok)
+            cli.initialize()
+            cli.initialized()
+            qd = qv.cmd_spot(cli, argparse.Namespace(symbol="XAU", tool_id=None))
+            if isinstance(qd, dict) and qd.get("rate"):
+                qv_spot = float(qd["rate"])
+    except Exception as e:
+        print(f"[提示] qveris 现货交叉验证跳过: {e}", file=sys.stderr)
+    if spot is None:
+        return {"_error": "partial", "detail": "现货(goldprice.dev 未取到/Cloudflare 拦截)",
+                "spot": None, "hint": "可改用 basis 子命令手动传入 --spot / --fut"}
+    res = {
+        "spot": spot,
+        "spot_qveris_cross": qv_spot,
+        "futures_GC": None,
+        "note": "黄金现货端已取(goldprice.dev" + (" + qveris 交叉验证" if qv_spot else "") +
+                ");GC 期货端无免费实时源(iTick 已移除),请用 basis 子命令 --fut 手动传入近月合约价。",
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    }
     return res
 
 

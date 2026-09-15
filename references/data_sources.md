@@ -223,6 +223,8 @@ python scripts/live_market_fetch.py --preset all --json
 
 **本环境实测结论(2026-08/09 中国大陆网络):多数免费 K 线历史源不可用**,故盘面解读的输入遵循"**双路径、取数铁律**":
 
+- **IMA 知识库(个人沉淀,历史行情参考)**:用户腾讯 IMA 知识库中长期积累的**行情复盘笔记 / 历史数据快照 / 方法论**,可作为历史行情与跨市场研判的**补充参考源**(本环境可经 IMA MCP 连接器读取,亦可在写报告时援引)。凡引用 IMA 中的具体数值,须标注 `[源: IMA 知识库 | 截至:YYYY-MM-DD]`,且不作为唯一权威源——关键结论仍以第 1 节所列官方/国际组织一手源交叉验证为准。
+
 - **路径①(零网络依赖,推荐)**:用户从 MT4 导出 CSV 或粘贴 OHLC 文本,由 `scripts/kline_read.py` 本地确定性计算——与手工交易习惯一致、最可靠。
 - **路径②(联网权威抓取,需免费 Key)**:当用户**未发送任何 K 线数据**时,用 `kline_read.py --fetch` 经 **Twelve Data** 联网抓取 15min/1H/4H/1D/1W 五周期——**Twelve Data 是中国大陆可直连、免翻墙的权威 OHLC 历史源**(2026-09 实测 HTTP 200,覆盖外汇/黄金/原油)。
 
@@ -433,7 +435,7 @@ python scripts/itick_fetch.py kline --asset forex --code XAUUSD --kType 1d --lim
 
 - **Base**:`https://api.goldprice.dev`,端点 `/v1/prices?symbol=XAU-USD-SPOT`(亦支持 `/v1/spot/XAU-USD-SPOT`)。
 - **认证**:免费层**无需 key**;Free key 层用 `x-api-key: <key>`。key 存于 `scripts/.goldprice_key`(不进 zip);读取优先级 `--api-key` > 环境变量 `GOLDPRICE_API_KEY` > `scripts/.goldprice_key`。
-- **权威价值**:直接给**国际现货金价 XAU-USD-SPOT**(美元/盎司),作为期现结构分析的"现货锚"(与 iTick GC 期货、LBMA 代理交叉验证)。
+- **权威价值**:直接给**国际现货金价 XAU-USD-SPOT**(美元/盎司),作为期现结构分析的"现货锚"(与 LBMA 代理 / qveris 交叉验证)。
 - **返回**:`{"XAU-USD-SPOT":{"price":...,"currency":"USD","unit":"troy_ounce",...}}`。
 - **脚本**:`scripts/goldprice_fetch.py`(纯标准库;返回现货价,或识别 Cloudflare 拦截返回 `cloudflare_block` 优雅降级)。
 
@@ -541,6 +543,52 @@ python scripts/qveris_fetch.py credits
 ```
 
 > ⚠️ **取数铁律(与本技能一致)**:任一 `call` 失败/超时/返回空,脚本仅报告原因并跳过该品种,**绝不编造、估算或凭记忆生成任何价格**。qveris 按调用计费,批量扫描前先用 `credits` 确认余量;不建议对全部品种无差别高频 `call`(可与免费源 live_market_fetch.py / Twelve Data 分层搭配)。
+
+### 7.17 Frankfurter 免费外汇参考汇率(独立脚本,无需 key)
+
+- **Base**:`https://api.frankfurter.dev/v1`(旧 `api.frankfurter.app` 已 301 失效,须统一用 `.dev`)。
+- **数据源**:由**欧洲央行(ECB)官方每日参考汇率**驱动的开源公共 API——**无认证、无 key、无明确请求上限**(仅基础防滥用)。
+- **数据性质**:**ECB 每日参考汇率,仅工作日更新**(非实时 tick);**仅含法币,不含 XAU 黄金 / XAG 白银**(贵金属请用 goldprice.dev / WGC-LBMA / qveris)。
+- **与 AllRatesToday 互补**:Frankfurter = **日参考**(权威、工作日、免 key);AllRatesToday(§7.18)= **实时中间价**(约 60 秒刷新、需 key)。二者叠加覆盖"日级研判 + 盘中监控"。
+- **端点**:
+  - `GET /v1/latest?base=USD&symbols=EUR,GBP,JPY` → 最近一个工作日
+  - `GET /v1/2026-01-02?base=USD&symbols=EUR,GBP` → 指定单日(周末/节假日 404)
+  - `GET /v1/2025-12-29..2026-01-05?base=USD&symbols=EUR,GBP` → 时间序列区间(`rates` 按日期嵌套)
+  - `GET /v1/currencies` → 货币代码→名称(共 30 种)
+- **脚本**:`scripts/frankfurter_fetch.py`(纯标准库;`--base/--symbols/--amount`、`--date` 历史单日、`--from/--to` 时间序列、`--currencies` 货币列表、`--out` 落 CSV/JSON、`--json` 原始响应;未指定 `--symbols` 默认 FX 常用 8 币种 EUR,GBP,JPY,AUD,CNY,CHF,CAD,NZD)。
+
+```bash
+# 最新 ECB 参考汇率(USD 基准,多目标)
+python scripts/frankfurter_fetch.py --base USD --symbols EUR,JPY,AUD,CNY
+# 历史单日
+python scripts/frankfurter_fetch.py --base USD --symbols EUR --date 2026-01-02
+# 时间序列区间(落 CSV)
+python scripts/frankfurter_fetch.py --base USD --symbols JPY,AUD --from 2026-08-01 --to 2026-09-01 --out "./output/ecb_series.csv"
+# 货币列表
+python scripts/frankfurter_fetch.py --currencies
+```
+
+### 7.18 AllRatesToday 实时外汇中间价(独立脚本,需 Bearer Token)
+
+- **Base**:`https://allratestoday.com/api`
+- **数据源**:AllRatesToday 实时银行间 **mid-market 中间价** API,覆盖 **160+ 法币**,约 **每 60 秒刷新**(非 ECB 官方参考汇率,亦非逐笔 tick);**仅含法币,不含 XAU/XAG**。
+- **认证**:`Authorization: Bearer <Token>`(免费档即 160+ 货币)。Token 存于 `scripts/.art_key`(单行纯文本,不进 zip);读取优先级 `--api-key` > 环境变量 `ART_KEY` > `scripts/.art_key`。**切勿明文外泄 Token**,疑泄露即到 allratestoday.com 后台吊销换新。
+- **端点**:
+  - `GET /api/v1/rates?source=USD&target=EUR` → 最新一对(响应 `[{"rate","source","target","time"}]`)
+  - `GET /api/v1/rates?source=USD&target=EUR&time=YYYY-MM-DD` → 历史单日
+  - `GET /api/historical-rates?source=USD&target=EUR&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` → 时间序列(响应 `{"source","target","data":[{"date","rate","timestamp"}...]}`)
+- **脚本**:`scripts/allratestoday_fetch.py`(纯标准库;`--source/--target`(可逗号多对)/`--time` 历史单日、`--history --start/--end` 时间序列、`--api-key/ART_KEY/.art_key` 取 Token、`--out` 落 CSV/JSON、`--json` 原始响应)。
+
+```bash
+# 实时中间价(一次多对)
+python scripts/allratestoday_fetch.py --source USD --target JPY,AUD,EUR
+# 历史单日
+python scripts/allratestoday_fetch.py --source USD --target EUR --time 2026-09-12
+# 时间序列(落 CSV)
+python scripts/allratestoday_fetch.py --source USD --target JPY --history --start 2026-09-08 --end 2026-09-12 --out "./output/art_series.csv"
+```
+
+> ⚠️ 说明:AllRatesToday 为商业实时汇率服务(免费档 160+ 货币),适合事件前后盘中汇率反应监控;其报价为银行间中间价,与 ECB 参考汇率(Frankfurter)、经纪商点差报价存在口径差异,用于方向研判时须标注 `[源: AllRatesToday | 截至:YYYY-MM-DD HH:MM]`。
 
 ## 8. 溯源纪律(强制)
 
