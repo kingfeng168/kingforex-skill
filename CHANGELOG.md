@@ -1,5 +1,230 @@
 # kingforex-skill 更新日志
 
+## v2.5.6 (热修②) — scorechart 柱内标签改「居中横排」+ 柱体加宽(修复数字重叠/溢出) · 2026-09-16
+
+触发场景：用户第四次「调准格式」指令（同日）：v2.5.6 首发版 scorechart 柱内数值标签（insideTop + rotate 90 竖排）**数字重叠**，要求「柱形图中的数字放到柱子中间、横着显示，注意数字大小不要超出柱子外」。
+
+- **柱内数值标签**：`position: insideTop + rotate:90 + fontSize 9` → **`position: inside + rotate:0 + fontSize 8 + fontWeight 600`**（柱内正中、横向显示）。
+- **柱体加宽**：四维柱 series 统一追加 `barCategoryGap: "8%"` / `barGap: "5%"`（每柱 ≈27px，容纳 5 字符 2 位小数标注，不溢出柱宽、不与相邻柱标签重叠）。
+- 数值/位数**零改动**：柱内四维与折线总分仍全部 2 位小数，与四·补明细同源（AUDJPY 65.30 / USDKRW 59.90）。
+- 无头截图核验（评分节独立页 + 分组放大）：XAUUSD/XAGUSD/AUDJPY/USDKRW 各组柱内数字居中横排、无重叠、无溢出。
+- 资产同步：冻结模板 `assets/decision_enhanced_template_v256.html` 更新（新 SHA256 前缀 `0f1d7176`，1,243,090 B）；生成器 `scripts/gen_decision_enhanced_v256.py` 同步；实战样本重新产出（24 节 24/24、echarts init 15/15、CDN 0、三引擎 patch 全 OK）。**版本号保持 v2.5.6**（同一授权框架内的渲染缺陷修复，非新格式版本）。
+
+## v2.5.6 — 「调准格式」第三次授权: 撤回 v2.5.5 分项说明表 + scorechart 数值标注(2位小数, 与四·补明细一致) · 2026-09-16
+
+本轮同步技能（开源副本 + 已安装副本），**不动 EXE**。
+触发场景：用户 2026-09-16 第三次「调准格式」指令：**去除 v2.5.5 版本、回归 v2.5.4 框架**；scorechart 微调——柱状图内显示数值、折线数值与「四·补 评分模型子项明细」**数值一致、位数一致**（2 位小数），更新版本 V2.5.6。
+
+### ① 撤回 v2.5.5
+- 移除第四节「4.1 评分分项说明一览表」，评分卡回归 v2.5.4 框架（score-card 卡片 + scorechart 图表）。
+- v2.5.5 模板/生成器资产（`decision_enhanced_template_v255.html` / `gen_decision_enhanced_v255.py`）已从技能与交付目录删除；下方 v2.5.5 条目保留作历史记录（标记已撤回）。
+
+### ② scorechart 数值标注（本次核心）
+- **四维柱**：柱内竖排（rotate 90, insideTop）标注数值，**2 位小数**（如 68.00），位数与四·补「维内均值」列一致。（⚠️ 该竖排方式后被同日热修②改为居中横排，见上方条目）
+- **综合总分折线**：由整数改为**精确加权值 2 位小数**（AUDJPY 65.30 / USDKRW 59.90 等），与四·补「总分」行完全一致；图下注释同步为 65.30。
+- 数据源：与四·补明细同源（SCORES 四维加权；AUDJPY 66/68/64/62、USDKRW 58/70/56/52 与明细维内均值逐一相符），无独立数据块。
+- 图表标题注明「数值均为2位小数与四·补子项明细一致」。
+
+### ③ 版本与资产
+- 冻结模板 `assets/decision_enhanced_template_v256.html`（SHA256 前缀 `f918f78a`，1,215,549 B）；生成器 `scripts/gen_decision_enhanced_v256.py`（= v2.5.4 框架 + ②）。
+- 实战样本 `今日行情分析_决策增强版_v2.5.6_2026-09-16.html`：24 节 24/24、echarts init 15/15、CDN 0、三引擎 patch 全 OK、无头截图核验柱内数值/折线 2 位小数标注渲染正常。
+- SKILL.md 输出规范首条升级 v2.5.6 口径（评分卡双格式 + 数值位数铁律 + 校验清单 8 项）；版本线：**v2.5.6 当前基线**，v2.5.5 已撤回删除，v2.5.4/v2.5.3/v2.5.2 历史保留。
+
+
+## v2.5.5 — 【已撤回 · 2026-09-16】「调准格式」第二次授权: 评分卡新增 4.1 分项说明一览表
+
+> ⚠️ **本版本已按用户指令于同日撤回**（第三次调准指令：去除 v2.5.5、回归 2.5.4），相关资产已删除，仅留此记录。其「分项说明一览表」内容如需恢复由 v2.5.6+ 按新指令重新实现。
+
+
+## v2.5.4 — 「调准格式」授权调准: 评分卡加评分图表 + 各节数据截至行 + 校验/纪律序号调换 · 2026-09-16
+
+本轮同步技能（开源副本 + 已安装副本），**不动 EXE**。
+触发场景：用户 2026-09-16 发出「调准格式」指令（格式变更唯一授权词），要求：①标的评分卡按模板逻辑与评分标准不变、格式调准增加图表；②数据和信息部分显示获取截止时间；③截图标注末节序号「二十/十九」需调换。
+
+### ① 评分卡新增 ECharts 评分图表（第四节）
+- score-card 卡片网格（4×3，格式与逻辑不变）之后新增 `id="scorechart"` 评分图表：**四维分组柱**（宏观25% #4a7fff / 技术30% #2ecc71 / 量化25% #f1c40f / 情绪20% #e67e22）+ **综合总分折线**（#ff5c7a，含数据标签）+ **75 分建仓绿色虚线 markLine**；数据与卡片同源（SCORES 四维加权），图下注明「与第二节不建仓判定一致」。
+- ECharts 实例 14 → **15**；评分逻辑与评分标准（四维加权、≥75 可建仓）零改动。
+
+### ② 数据/信息节新增「⏱ 数据截至」说明行
+- 页头 meta 新增全局数据截至行（行情/K线/FRED/日历/COT 五源汇总）；三快照、四评分、五宏观、六日历、七跨市场、八K线、九量化、十七回测共 8 节首行各加分项截至说明（源 + 末根/观测日 + 取数时点 15:45 GMT+8）。
+- 十八节「引用与依据」数据|源|截至表沿用不变（此前已含截至列）。
+
+### ③ 章节序号调换（纪律仍置末）
+- **数据一致性校验报告：二十 → 十九；交易纪律：十九 → 二十**；装配顺序不变（校验报告仍先于纪律），`extra_sections` 的 sec20() 标题同步改。
+- 页脚交叉引用「数据溯源见⑯」勘误为「见⑱」（引用与依据节）。
+
+### ④ 版本与资产
+- 冻结模板 `assets/decision_enhanced_template_v254.html`（SHA256 前缀 `98c47592`，1,214,824 B）；生成器 `scripts/gen_decision_enhanced_v254.py`（数据层/渲染层分离继承 v2.5.2）；`scripts/extra_sections_20260916.py` 同步更新。
+- 实战样本 `今日行情分析_决策增强版_v2.5.4_2026-09-16.html`：24 节标题 24/24、score-card 10/10、echarts init 15/15、CDN 0、数据截至行 9 处、三引擎 patch 全 OK；无头截图核验评分图表与末节编号渲染正常。
+- 版本号说明：v2.5.3 已由「报告生成器参数化 + goldprice.dev 历史接口」占用，故本次格式调准使用 v2.5.4。
+- SKILL.md 输出规范首条/模板条目/生成器条目/调用示例同步升级为 v2.5.4 口径；v2.5.2 及更早版本标记历史保留。
+
+
+## v2.5.3 — 报告生成器参数化(gen_report_param.py) + goldprice.dev 历史 K 线接口 · 2026-09-16
+
+本轮同步技能（开源副本 + 已安装副本），**不动 EXE**。
+触发场景：用户确认 gen_report_20260914.py 为 09-14 静态快照（报价/事件硬编码），要求重构为参数化版本并纳入技能；同时新增 goldprice.dev 历史 K 线取数接口。
+
+### ① 报告生成器参数化（核心）
+- 新增 `scripts/gen_report_param.py`：完全由 `daily_data.json` 驱动，不再硬编码任何每日市场数据（报价/利率/评分/账户/事件/持仓/相关性/止损/K线/徽章/版本号）。原 1562 行 HTML/MD/XLSX 装配逻辑零改写，仅把顶部硬编码常量抽成数据契约，运行时由桥(json.load)重新绑定同名全局变量。
+- 配套 `scripts/daily_data_20260914.json`：09-14 全量数据契约样例（37 个顶层 key），可作 schema 参考，亦可复现 09-14 报告。
+- 数据契约文档：`references/daily_data_contract.md`（逐字段说明 + 每日填写铁律）。
+- 迁移/校验工具：`scripts/build_daily_json.py`（快照模块 → daily_data.json，零转录误差）、`scripts/transform_to_param.py`（快照 → 参数化版的转换器）、`scripts/parity_check.py`（与原报告逐项 parity 校验）。
+- **parity 校验全绿**：HTML 字节差异仅 +93（INST 配置紧凑 JSON 注入 vs 原 JS 对象字面量，渲染等价）、MD 字节完全一致、节数 22=22、外链 6=6、jsdelivr CDN 0=0（离线内嵌）、MD 二级标题 22=22、15 项关键数值双方均在。
+- 账户状态关键数值（$636.59/$522/浮动 $0/累计 21.94%）改为由 `account` 字段渲染，杜绝卡片硬编码。
+- echarts 加载路径改为脚本相对（`<skill>/assets/echarts.min.js`），提升跨机可移植性。
+
+### ② goldprice.dev 历史 K 线接口
+- `scripts/goldprice_fetch.py` 新增 `--history` 模式：优先走官方 `/v1/bars`（取代已弃用 `/v1/prices/history`），支持游标分页、自动按 `bar_start` 升序、剔除 `is_closed=false` 的正在形成棒（`--keep-forming` 可保留），输出 `kline_<SYM>_1d.csv` 直喂报告 KD 字典。
+- 免费层限制：仅最近 30 天日线 XAU/USD；更久历史需 Pro。脚本对 Cloudflare(1010) 拦截做友好降级。
+
+### ③ 使用方式
+- 参数化报告：`python scripts/gen_report_param.py --date 2026-09-16 --data daily_data_20260916.json --kline-dir <csv目录> --out <输出目录>`
+- 刷新黄金 K 线：`python scripts/goldprice_fetch.py --history --symbol XAU-USD-SPOT --from 2026-09-16 --to 2026-10-16 --out-dir <csv目录>`
+
+
+## v2.5.2 — §九 量化验证改为「分标的独立雷达」(不叠加) · 2026-09-15
+
+本轮同步技能（开源副本 + 已安装副本），**不动 EXE**。
+触发场景：用户对 §九 量化验证节提出格式要求 ——「每个分析的标的单独一个图，不要叠加在一起」。
+
+### ① §九 量化验证节：从「单图/叠加」改为「分标的独立雷达」
+- **旧版问题**：v2.4.x 将 AUDJPY + XAUUSD 双多边形叠加在同一张雷达（直方图同理叠加）；v2.5.0/2.5.1 退化为仅 AUDJPY 单图，**韩元(USDKRW) 专项无独立图**。
+- **v2.5.2 规范**：§九 按标的内部分段（9.1 / 9.2 / …），**每个标的独占一张雷达图**（各自 `id="radar_<sym>"`、各自独立 `echarts.init`），**严禁多标的一张图叠加**。
+- **实现**：`quant_block(sym, klines)` 计算单标的六维画像（|Hurst| / |Z| / |Sharpe| / |Sortino| / |偏度| / 日VaR95%）；`radar_option(name, vals, color, area)` 工厂按统一 6 轴（max 1/3/3/4/2/3）生成独立坐标系。
+- **本次实战样本**：AUDJPY（Hurst 0.96 / Z −1.54 / Sharpe 0.07 / Sortino 0.07 / 偏度 0.39 / VaR95 0.8%）+ 韩元 USDKRW（Hurst 0.96 / Z −0.97 / Sharpe 0.64 / Sortino 0.66 / 偏度 0.03 / VaR95 1.1%），各自独立雷达，数值与 §七跨市场/4H 技术面读数自洽。
+- 报告文件名、标题、页脚、MD、XLSX 版本号统一由 v2.5.1 → v2.5.2。
+
+### ② 引擎新增可复用量化工具（供后续报告直接 import）
+- `scripts/decision_enhanced_report_v25.py` 新增 `quant_block(sym, klines)` 与 `radar_option(name, vals, color, area)`。
+- 口径与实战报告一致（Hurst 作用于 log 价格序列、Z 为 60 日收盘价窗口、返回绝对值供雷达归一化）。
+
+## v2.5.1 — 引擎级修复（角度 4 真正实现 · 参数口径注释 · 渲染修正）· 2026-09-15
+
+本轮仅更新技能（开源副本 + 已安装副本），**不动 EXE**。
+触发场景：AUDJPY 部分平仓（110.20 平 0.01 手，剩余 0.01 手）+ 临时新增韩元（USDKRW）专项分析的实战产出复核。
+
+### ① 角度 4「ATR 波动匹配」此前为空实现 —— 本次真正补全
+
+`evaluate_position()` 的六角度中，角度 4 旧代码恒返回 `None`：
+
+```python
+atr_sl_pips = atr_sl_units / pip_scale_guess(sl_pips) if False else None   # 死代码
+lots_atr = None
+```
+
+即六角度实际只有 **5 个**在参与收敛，但报告文案仍宣称「六角度评估」。本次补全：
+
+- `atr_sl_pips = (atr_mult × atr) ÷ pip`（`pip` 缺省时按 `pip_scale_guess(sl_pips)` 推断）；
+- 有效止损距离取 **`max(结构止损, 1.5×ATR)`** —— 波动放大时 1.5×ATR 往往宽于结构止损，此时应**缩减**仓位；
+- 按 **1% 风险预算**反推手数，并正式加入收敛候选列表；
+- 新增输出字段 `atr` / `atr_sl_pips` / `atr_mult`。
+
+### ② `evaluate_position()` 新增 `pip` 参数 + 参数口径文档
+
+函数 docstring 新增「⚠️ 参数口径（易错点）」段，明确三件事：
+
+| 参数 | 口径 | 典型值 |
+|------|------|--------|
+| `pip_value_per_std` | **每 0.01 手**每 pip 的账户币价值（函数内 ×100 转标准手） | AUDJPY @USDJPY 154.93 ≈ **0.0645** |
+| `sl_pips` | **止损距离（pips）**，不是价格差 | 89 |
+| `pip` | 该品种 pip 最小变动单位 | JPY 对 0.01 / XAU·XAG 0.1 / 其余 0.0001 |
+
+重点防范经典误用：**误传每标准手口径的 6.45**（而非 0.0645）→ 手数被缩小 100 倍。
+
+### ③ 渲染修正（⑪·补 六角度表）
+
+- ⑤ ATR 行改为显示**真实手数 / 美元 / 占净值**（旧版为占位 `—`），并在 ATR 成为约束时高亮 `yellow`；
+- ④ 组合总额风险行「已占用」改为 `5.00% − 余量` 的**正确值**（旧版硬编码 `0.00%`）。
+
+### ④ 质量口径备忘 —— `quant_block()` 已废弃，勿再复用
+
+实战复核中暴露：**内联 `quant_block()`**（存在于 `decision_enhanced_report.py` / `_20260912.py` / `_v24.py`）有两处口径缺陷：
+
+1. Hurst 算在**收益率**序列上（`h = hurst(rs)`）→ 应算在**价格 / 对数价格**序列上（趋势持续性口径）；且用的是单滞后 `log(R/S)/log(m)` 而非 R/S 回归；
+2. Z 用 `(last − mean) / (sd / √n)` 的 **t 统计量**口径 → 会产生 `|Z| ≈ 350950` 之类的荒谬值，应为**滚动窗口 Z-score**。
+
+**处置**：该函数自 **v2.4.1** 起已被 `quant_metrics.py` 取代（`hurst_rs(价格序列)` + 63d 滚动 Z-score），上述内联版本仅存于**归档生成器**，不再复用。新生成器请统一调用 `scripts/quant_metrics.py`。
+
+### ⑤ 本轮实测（AUDJPY 部分平仓 + 韩元专项）
+
+- **止损止盈**：判定 `REASONABLE`；`initRR 3.72` / `restRR 0.22`（原 SL 113.284 口径）；按建议 SL 111.30 口径 `restRR 0.71`、剩余风险 `$5.74 = 0.95%`（≤1% ✓）；浮盈 `+416.2 pip = $26.86`。
+- **六角度**：`{kelly 0.0105, cap1pct 0.0105, small05 0.0052, atr 0.0072, portfolio 0.0105, event 0.0}` → 最终 **0.000 手**（约束＝事件静默纪律·一票否决，超级央行周 Fed+BoE+BoJ）。
+- **结构校验**：24 节完整（含 四·补 / 六·补 / 十一·补 / 十四·补 / 二十）· `CDN refs: 0` · 14 项数据一致性校验全 PASS。
+
+## v2.5.0 — 决策增强版模板强制规范（冻结模板 + 锚点 patch · 止损止盈评估 · 仓位多角度评估）· 2026-09-14
+
+**对应需求（用户原话）**：「1：技能需要注意，严格按照此模板进行输出，严禁随意调准格式。@"./output/今日行情分析_决策增强版_2026-09-14.html" 2：止损止盈需要加入合理性评估。3：把使用注意事项放到红色框处。4：仓位评估方面，请从不同角度进行评估，然后输出最终的仓位选择，参照格式图2。5：其他方面按照 kingforex skill 要求进行。」
+
+本轮仅更新技能（开源副本 + 已安装副本），**不动 EXE**。
+
+### ① 模板固化（对应需求 1）—— 「严禁随意调整格式」铁律
+
+- 用户 2026-09-14 交付版 `今日行情分析_决策增强版_2026-09-14.html` **原样冻结**为技能资产 `assets/decision_enhanced_template.html`。
+  - 1,203,066 B / 1,182,010 字符，SHA256 前缀 `0431e48d`。
+  - 含 20 节结构 + 内嵌 ECharts + 12 个图表容器（`cross` / `chart_XAUUSD` / `chart_EURUSD` / `chart_GBPUSD` / `chart_USDJPY` / `chart_AUDUSD` / `chart_AUDJPY` / `radar` / `hist` / `k_pipinfo` / `corr` / `equity` / `stopcmp` / `rcurve`）。
+- **架构转向「冻结模板 + 锚点 patch」（patch-not-rewrite）**：新增 `scripts/decision_enhanced_report_v25.py`，流程为
+  `Read 模板 → 字符串锚点定位 → str.replace() 注入/迁移片段 → 输出`，**模板文件零改写，格式零漂移**。
+- `SKILL.md` 输出规范新增**首条【最高优先级】强制条款**：禁止改动 CSS 类名 / section 顺序与编号 / 卡片结构 / 配色字体 / 图表容器 id；禁止 rewrite，只能插在既有 section 之间（编号用「X·补」）。
+- 原 `assets/decision_enhanced_sample.html` 保留作**内容填充参考**，不再作为格式基准。
+
+三处锚点：
+
+| 变更 | 锚点 |
+|------|------|
+| ⑪·补 仓位多角度评估 | `<div class="section"><div class="section-title">🔗 十二、收益相关性热力图` |
+| ⑭·补 止损止盈合理性评估 | `<div class="section"><div class="section-title">💡 十五、综合判定与操作建议</div>` |
+| 凯利注意事项迁移 | 含「三分之一凯利 (保守)」行的 `</table></div>` |
+
+### ② 止损止盈合理性评估（对应需求 2）—— 新增第 ⑭·补 节
+
+- 引擎 `evaluate_sl_tp()`（`scripts/sl_tp_evaluate.py` 同口径）：pip 距离 → **初始 R:R vs 剩余 R:R** → 浮盈（pips/USD/权益占比）→ 单笔美元风险 → SL 方向校验 → ATR 宽度 sanity（1.0×~3.0×）。
+- **三级判定** `REASONABLE / CAUTION / UNREASONABLE` + 逐条理由。
+- **八类缺陷代码分级**：`SL_REVERSED`(severe，需 `cur_to_sl > 3×cur_to_tp` 确认) / `TRAIL_SUGGEST`(warn) / `REST_RR_BROKEN`(<0.5 severe) / `REST_RR_LOW`(<1.5 warn) / `BAD_INIT_RR` / `OVER_RISK` / `OVER_1PCT` / `SL_TOO_TIGHT` / `SL_TOO_WIDE`。
+- **SL 已触发锁利降级逻辑**：`sl_triggered and sl_triggered_pips > 0` → 强制判 `REASONABLE`，并把 `OVER_RISK` / `OVER_1PCT` / `BAD_INIT_RR` 由 severe 降为 warn。
+- 重点防范：① 反向移动止损（盈利单把 SL 移回亏损侧，回吐浮盈）；② 剩余 R:R 崩塌（用极大风险博极小剩余空间）。
+
+### ③ 凯利使用注意事项迁移（对应需求 3）—— 从节末移入左卡红框区
+
+- `patch_kelly_notes()` 两步操作：
+  1. 定位节底原 `verdict-warn` 块（`凯利公式使用注意` → `rfind('<div class="verdict-warn"')` 至 `再点「重新计算」。</div>`）并整段删除；
+  2. 注入第⑪节左侧「凯利公式原理」卡片内红框区 —— 锚点为含「三分之一凯利 (保守)」行的 `</table></div>`，改为 `</table>\n<notes>\n</div>`，即**回测表格正下方**。
+
+### ④ 仓位多角度评估与最终仓位选择（对应需求 4）—— 新增第 ⑪·补 节
+
+- 引擎 `evaluate_position()`，**六角度分别评估**：
+
+  | # | 角度 | 口径 |
+  |---|------|------|
+  | ① | 凯利理论 | 半凯利，含 1% 硬上限约束 |
+  | ② | 1% 单笔风险硬上限 | 纪律红线 |
+  | ③ | 0.5% 小账户保守口径 | 净值 < $1000 适用 |
+  | ④ | 组合总额风险约束 | ≤ 5%，扣减已占用风险 |
+  | ⑤ | ATR 波动匹配 | 波动 regime 适配 |
+  | ⑥ | 事件静默纪律 | **一票否决** |
+
+- **收敛规则**：取六角度**最小值**；事件静默**一票否决**；凯利负期望**直接否决**；落地按最小手 0.01 手**向下取整**（**绝不向上取整**）。
+- **`below_min_lot` 语义**：理论手数 < 最小手 → 判「不可交易」，并给出最小手对应风险占比解释。输出字段 `pre_floor_lots` / `below_min_lot` / `min_lot` / `min_lot_risk_usd` / `min_lot_risk_pct`。
+- **输出格式**：横向六角度评估表 + **唯一绿色高亮推荐表**（`🎯 最终仓位选择: X.XXX 手` + 「项目 \| 具体操作」）。
+
+### ⑤ 实测结论
+
+- **SL/TP**：`REASONABLE`｜`initRR=3.72 restRR=0.17`｜浮盈 `+429.5 pip = $55.46`。
+- **仓位六角度**：`{kelly: 0.0118, cap1pct: 0.0118, small05: 0.0059, portfolio: 0.0118, event: 0.0}` → **最终 0.000 手（事件静默一票否决）**。
+- 输出 `今日行情分析_决策增强版_2026-09-15.html`（1,182.1 KB，三处 patch 全部 OK，`cdn.jsdelivr.net` 零残留）。
+
+### ⑥ 文档同步
+
+- `SKILL.md`：输出规范新增首条强制条款 + 模板清单重排（`decision_enhanced_template.html` 提为冻结骨架）+ 脚本表新增 v2.5.0 生成器 + 调用示例。
+- `references/position_report.md`：新增**第 5.5 节「决策增强版模板强制规范」**（适用范围 / 唯一骨架与 SHA256 / patch 装配三锚点 / 20 节固定顺序 / 凯利注意事项固定位置 / 两个强制模块 / 强制核对清单 / pip 口径统一）+ 演进记录新增 v2.5.0 行。
+- 同步至开源副本 `D:\workbuddy\输出文件\开源技能\kingforex-skill\`。
+- **脚本计数**：净脚本数 **35 → 36**。
+
+### ⑦ 踩坑记录
+
+- **`%`-格式化陷阱**：`render_sl_tp_section()` 内 `"... 1% 硬上限（%s）"` 触发 `ValueError: unsupported format character '?' (0x786c) at index 13` —— 字面量 `1%` 未转义，`% 硬` 被解析为格式化符。修复：改写为 `1%%`。同一文件中 `总风险上限 5.00%` 等处已预先写成 `%%`，属同类预防。
+- **无头截图定位中后部 section**：iframe + `f.onload` 内 `W.scrollTo()` 时序不可靠（截图仍为页首）。改用 `_verify_v25b.py` —— 用 `<div>` 平衡算法把目标 section 整段提取为独立 HTML 页面（带原 `<style>`），再分别截图，三张全部成功。
+
 ## v2.4.7 — 新增止损/止盈合理性评估脚本（sl_tp_evaluate.py）· 2026-09-14
 
 **对应需求：用户要求技能增加"止损止盈合理性评估"能力。触发场景为实盘 AUDJPY 空单把 SL 从盈利区(113.284)上移到入场上方(114.90)的离场纪律诊断。**
