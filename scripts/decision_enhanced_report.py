@@ -9,10 +9,25 @@ v2.3: 评分卡4x2/宏观大事列表化/凯利标的全适配下拉/引用倒�
 所有 ECharts option 用 json.dumps 注入, 避免 f-string 花括号错误。
 """
 import os, csv, json, math
+import os as _os
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+_ROOT = _os.environ.get("KINGFOREX_HOME", _os.path.dirname(_HERE))
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "output", "行情分析_20260911")
+# 输出目录(v2.6.0 可移植化): KINGFOREX_DATA > 包内 KingForex数据/output/<日期> > 相对目录
+import re as _re
+_DATE_RX = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_OUT_ENV = _os.environ.get("KINGFOREX_DATA", "").strip()
+if _OUT_ENV and _os.path.isdir(_OUT_ENV):
+    OUT = _OUT_ENV
+else:
+    _o = _os.path.join(_ROOT, "KingForex数据", "output")
+    _sub = sorted([d for d in _os.listdir(_o)
+                   if _DATE_RX.match(d) and _os.path.isdir(_os.path.join(_o, d))]) \
+        if _os.path.isdir(_o) else []
+    OUT = _os.path.join(_o, _sub[-1]) if _sub else _os.path.join(
+        _ROOT, "KingForex数据", "output", "2026-09-11")
 NOW = "2026-09-11 17:05 GMT+8"
-SKILL_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "decision_enhanced_sample.html")
+SKILL_CSS = _os.path.join(_ROOT, "assets", "decision_enhanced_sample.html")
 
 # ---------- 账户状态 (v2.1 参考情景: 已部分管理的 AUDJPY 空单) ----------
 ACC = {

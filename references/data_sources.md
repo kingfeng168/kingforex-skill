@@ -19,7 +19,7 @@
 
 | 数据源 | 权威性 | 关键内容 / 系列 ID | 更新频率 | 获取方式 |
 |--------|--------|--------------------|----------|----------|
-| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 已配置于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
+| **FRED**(圣路易斯联储) `fred.stlouisfed.org` | 官方一手 | `DGS10`(10Y 名义利率)、`DFII10`(10Y TIPS 实际利率)、`T10YIE`(10Y 盈亏平衡通胀)、`T10Y2Y`(2s10s 利差)、`DGS3MO/DGS1/DGS2/DGS5/DGS30`(收益率曲线)、`FEDFUNDS/DFF`(政策利率) | 日频 | **脚本** `scripts/fred_fetch.py`(key 由用户自备,存放于 `scripts/.fred_key`,详见第 7.10 节);亦支持网页 / 公开 API(免费 key:`fredaccount.stlouisfed.org/apikeys`) |
 | **美联储官网** `federalreserve.gov` | 官方一手 | SEP 经济预测摘要(含点阵图 Dot Plot)、FOMC 声明、鲍威尔发布会讲稿 | 每次会议 | 网页(经济预测摘要 / monetary policy) |
 | **CME FedWatch** `cmegroup.com`(FedWatch Tool) | 市场隐含 | 联邦基金期货隐含的加息/降息概率路径 | 实时 | **无免费 API(需付费订阅 + OAuth)**;用 `scripts/fedwatch_csv.py` 解析网页手动导出的概率 CSV(详见第 7.8 节) |
 | **克利夫兰联储 Inflation Expectations** `clevelandfed.org` | 官方一手 | 未来通胀预期模型 | 日/周 | 网页 |
@@ -45,6 +45,7 @@
 | **BoE 官网** `bankofengland.co.uk` | 官方一手 | 利率决议、通胀报告、前瞻指引 | 每次会议 | 网页 |
 | **PBOC / 外管局** `pbc.gov.cn` `safe.gov.cn` | 官方一手 | 人民币中间价、跨境资本流动 | 日频 | 网页 |
 | **qveris MCP 市场(金银/外汇/宏观)** `mcp.qveris.ai` | 聚合市场(按调用计费) | 金银现货 XAU/XAG(`commodity_price_api.rates.live`,**填补白银 XAGUSD 缺口**)、外汇日线(`alphavantage.fx_daily`,USDJPY/EURUSD/AUDJPY 等,**无 Twelve Data 的 429 限频**)、外汇实时(`eodhd`,`XXX.FOREX`)、FRED 全系列(`stlouisfed_fred.*`)、央行利率 | 实时/日 | **脚本** `scripts/qveris_fetch.py`(详见第 7.16 节;Bearer token 读 `~/.workbuddy/mcp.json`,单次 ~1–9.55 credits,额度 1000) |
+| **华尔街见闻 WSCN MCP** `xgb-mcp-api.xuangubao.cn` | 官方资讯(第二源) | 全球财经资讯**深度摘要 + 事件因果归因**、A 股大涨股异动逻辑——**与金十互补**(金十=速报,见闻=解读) | 日频 | **脚本** `scripts/wscn_fetch.py`(详见第 7.19 节;需 `.wscn_key` 且必须带 `X-WMCP-Client: wbwscn` 头,仅近两个月) |
 | **美元指数 DXY** | 市场基准 | ICE 美元指数(一篮子 6 货币) | 实时 | TradingView / Yahoo / 经纪商终端 |
 
 ---
@@ -79,7 +80,7 @@
 | 数据源 | 权威性 | 关键内容 | 获取方式 |
 |--------|--------|----------|----------|
 | **TradingView** `tradingview.com` | 市场基准 | 跨市场图表模板、VIX、信用利差(ICE/BofA)、AUD/JPY、USD/CAD、USD/CNH | 网页 / 模板 |
-| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `./output/financial-dashboard\daily_data.json` |
+| **用户"全球金融日报"系统** | 自用一手 | 已覆盖 40 品种的 JSON/HTML(`daily_data.json`),可直接作为本技能宏观研判输入源,**避免重复采集** | 读取 `./output/financial-dashboard/daily_data.json` |
 | **中国信贷脉冲** | 一手派生 | 社融增量 / GDP(PBOC),领先铜、澳元、人民币 3–6 个月 | PBOC 网页 / CEIC / Wind |
 
 ---
@@ -323,7 +324,7 @@ python scripts/fedwatch_csv.py --csv fedwatch.csv --json   # 机器可读
 
 - **FRED API**:`fred.stlouisfed.org/docs/api/fred`,免费注册 key;**已脚本化**——用 `scripts/fred_fetch.py` 拉取 `DGS10`/`DFII10`/`T10YIE`/`T10Y2Y` 等宏观利率系列(详见第 7.10 节),key 需自备,可存于 `scripts/.fred_key`。
 - **WebFetch**:本环境可直接对官方/聚合页面做结构化抓取(用于无 API 的源,如 WGC、OPEC 报告要点)。
-- **用户日报系统**:读取 `./output/financial-dashboard\daily_data.json`,作为滚动相关性分析的本地数据源。
+- **用户日报系统**:读取 `./output/financial-dashboard/daily_data.json`,作为滚动相关性分析的本地数据源。
 - **Python / Excel**:对取回数据自动更新 20/60 日滚动相关性(见 `scripts/exposure.py` 与 `cross_market.md`)。
 
 ### 7.10 FRED API（宏观 / 利率地基,key 需自备）
@@ -589,6 +590,86 @@ python scripts/allratestoday_fetch.py --source USD --target JPY --history --star
 ```
 
 > ⚠️ 说明:AllRatesToday 为商业实时汇率服务(免费档 160+ 货币),适合事件前后盘中汇率反应监控;其报价为银行间中间价,与 ECB 参考汇率(Frankfurter)、经纪商点差报价存在口径差异,用于方向研判时须标注 `[源: AllRatesToday | 截至:YYYY-MM-DD HH:MM]`。
+
+### 7.19 华尔街见闻 WSCN MCP（全球资讯深度摘要 / 异动归因）
+
+- **定位**:华尔街见闻官方 MCP 服务(服务端 `xgbmcp-market-data`),提供**全球财经资讯的深度摘要与因果归因**,以及 A 股大涨股异动逻辑。
+  **与金十(§7.11)的分工**:金十 = 实时快闪/报价/财经日历(高频速报);见闻 = 中低频深度摘要 + 事件因果链 + 异动归因。**见闻作为金十之外的第二资讯源,用于事件结论的交叉验证,不替代金十**。
+- **端点**:`https://xgb-mcp-api.xuangubao.cn/mcp`(streamable-http,中国大陆可直连)
+- **认证**:`Authorization: Bearer <key>` **且必须同时带请求头 `X-WMCP-Client: wbwscn`** —— 两者缺一即被拒绝。Token 存于 `scripts/.wscn_key`(单行纯文本);读取优先级 `--api-key` > 环境变量 `WSCN_API_KEY` > `scripts/.wscn_key`。**切勿明文外泄 Token**,疑泄露即到华尔街见闻后台吊销换新。
+- **三个只读工具**(2026-09-17 实测):
+  | 工具 | 用途 | 关键参数 |
+  |---|---|---|
+  | `get_wscn_global_articles` | 全球资讯列表(**不含正文**,含 title + summary + id) | `date`(YYYY-MM-DD,默认当天) |
+  | `get_wscn_global_article_detail` | 单篇正文(HTML) | `date` + `id`(**两者均必填**) |
+  | `get_large_stocks` | A 股异动板块 + 个股 + 上涨原因 | `date`(默认当天) |
+- **限制**:仅可查询**近两个月**数据;日期为北京时间。
+- **脚本**:`scripts/wscn_fetch.py`(纯标准库,无需 pip)。
+
+```bash
+# 连通性与工具清单自检
+python scripts/wscn_fetch.py probe
+# 【推荐】按交易事件相关度排序的资讯(内置央行/汇率/贵金属/原油/通胀/风险 六类关键词打分)
+python scripts/wscn_fetch.py relevant --date 2026-09-17 --top 15
+# 全量资讯列表(落 JSON)
+python scripts/wscn_fetch.py articles --date 2026-09-17 --out "./output/wscn_0917.json"
+# 单篇正文(先取列表中的 date + id)
+python scripts/wscn_fetch.py detail --date 2026-09-17 3781913
+# A 股异动归因
+python scripts/wscn_fetch.py stocks --date 2026-09-17
+```
+
+- **`relevant` 子命令的排序逻辑**:对本技能交易场景关键的六组关键词打分(央行/货币政策、汇率/美元、贵金属、原油/能源/地缘、通胀/就业/宏观、关税/衰退/避险),命中越多越靠前,同分按 `displayTime` 倒序。输出每条附带 `_score`(命中数)与 `_hits`(命中词列表),便于快速定位事件驱动线索。关键词表在脚本 `KEYWORDS` 常量,可随研究方向增补。
+- **用于报告的场景**:
+  1. **宏观大事节**——与金十日历交叉验证,补「事件的市场解读与因果链」(见闻擅长,金十偏速报)。
+  2. **地缘风险卡**——原油供应冲击、海峡通行风险、制裁类事件的影响传导链。
+  3. **跨市场联动**——见闻摘要常直接给出「美联储加息 → 美元拉升 → 黄金跳水 → 美债收益率反弹」的联动表述,可作跨市场结论的外部佐证。
+  4. **事件预期差**——同一事件的多家机构解读汇总,识别市场共识与分歧点。
+- **溯源格式**:`[源: 华尔街见闻 | 截至:YYYY-MM-DD HH:MM]`;与金十并用时分别标注,出现分歧按 §8 第 4 条记为「预期差」而非取其一。
+
+> ⚠️ **取数铁律(与前文一致)**:任一调用失败/超时/返回空,脚本仅报告原因并跳过该条,**绝不编造、估算或凭记忆生成任何资讯内容**。见闻摘要属**二手加工内容**,用于方向研判时须回到一手源(FRED/官方发布会/统计局)复核关键数字。
+
+### 7.20 Jev 判断/校验工具（Typesafe,API Key 已配置）
+
+- **定位**:`Jev` 是 Typesafe 出品的**判断/校验工具**(非行情源、非信号源)。它的职责是"判断"(judge)——对给定 State 回答你构造的 Questions;**生成归你,判断归 Jev,执行归代码**。本技能把它当作**审计员、门控器、校准器**来用:在已形成交易计划之后,用 Jev 对方向一致性、市场清晰度、安全窗口、品种选择、新闻冲击做独立校验,**不替代你的方向决策**。
+- **Key 配置**:Key 已写入 `scripts/.jev_key`(本地文件,**不进 zip**、不进脚本源码);读取优先级 `--api-key` > 环境变量 `JEV_API_KEY`(=`TYPESAFE_API_KEY`) > `scripts/.jev_key`。
+- **端点与认证**:`POST https://api.typesafe.ai/v1/systemone`,请求头 `Authorization: Bearer <TYPESAFE_API_KEY>`,`Content-Type: application/json`。请求体 `{"model": "jev-latest", "state": <string>, "questions": { "<id>": { "type": "noul|choice|score", ... } }}`。返回 `{"answers": { "<id>": { "noul"/"choice"/"score"..., "confidence": <0-1> } }}`。
+- **三原语**:
+  - `noul`(0–1 概率,是/否):用于"是否""有无"类判断(如方向是否一致、窗口是否安全、新闻是否扰动)。
+  - `choice`(选项 + 概率 + 置信度):用于"选哪个"(如 best_pair: forex / gold / wti / none)。
+  - `score`(有序量表,可小数 + `legend` + 置信度):用于"程度"(如市场清晰度 1–5 档)。
+  - 一次请求可混合并行多个原语。
+- **100 倍杠杆保守门控阈值(起点参考,实盘前须用本品种历史数据校准)**:
+
+  | 维度 | 原语 | 阈值 | 含义 |
+  |---|---|---|---|
+  | 方向一致性 `direction_coherent` | noul | ≥0.80 | 未过:计划方向存疑,放弃提交 |
+  | 市场清晰度 `market_clarity` | score | ≥2.5 | 未过:放弃或降至 1/3 仓 |
+  | 安全窗口 `safe_to_execute` | noul | ≥0.85 | 未过:不执行 |
+  | 品种选择 `best_pair` | choice | ≥0.80 | 未过:不交易(选 none) |
+  | 新闻冲击 `news_impact` | noul | ≥0.75 | 未过:不纳入决策 |
+
+- **调用纪律(强制)**:
+  1. Jev 的判断结果是**信息,不是命令**;永远不要把低置信度输出当作确定事实来行动。在 100 倍杠杆下,一次错误的自信就是一次爆仓。
+  2. 低置信度结果(`confidence` 未达阈值)**直接丢弃**,不进入决策。
+  3. Jev **不能绕过风控硬边界**(单笔≤净值 1%、当日≤3%、连亏 3 笔熔断 24h、重大数据窗口前 30 分后 15 分禁开仓、隔夜敞口>20 倍须减仓)——门控通过只代表"可进入独立程序化风控复核",不代表放行。
+  4. `state` 须为各品种纯净上下文(价/波动区间/数据发布/央行倾向/策略方向及依据),**不混入噪声**;`questions` 一次只问可证伪的明确问题。
+  5. 社区回测显示直接把 Jev 当信号源方向命中率约 49.3%(跑输随机),官方标记高风险谨慎——**仅作校验层,绝不作信号层**。
+- **State 构造要点**:
+  - 外汇:现价 / 近期波动区间 / 待公布数据及时间 / 央行倾向 / 计划方向及依据。
+  - 黄金(XAUUSD):现价 / 实际利率(TIPS)方向 / 美元指数 / 地缘事件 / 计划方向。
+  - WTI:现价 / EIA 库存变化 / OPEC 表态 / 地缘跳空风险 / 计划方向。
+- **客户端用法**:
+  ```bash
+  # ① 连通性自检(最小请求)
+  python scripts/jev_fetch.py probe
+  # ② 通用判断(自构 state/questions JSON)
+  python scripts/jev_fetch.py evaluate --state-file state.json --questions-file q.json
+  # ③ 100 倍杠杆审计门控(内置 4 题,综合决策)
+  python scripts/jev_fetch.py audit --state-file state.json
+  #   返回 0=审计通过(可进入独立程序化风控复核);2=未通过(放弃)
+  ```
+- **⚠️ 取数铁律(与本技能一致)**:任一调用失败/超时/返回空,脚本仅报告原因并跳过,绝不杜撰;置信度≠校准胜率,实盘前须用本品种历史数据校准后再用。
 
 ## 8. 溯源纪律(强制)
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-kingforex-skill v3.0 — 统一计算引擎 (Single Source of Truth)
+kingforex-skill — 统一计算引擎 (Single Source of Truth)
 
-设计目标（对应 v3.0 规范第五章 / 3.2 模板问题修复）：
+设计目标（对应统一计算引擎规范 / 3.2 模板问题修复）：
 - 所有模块（HTML 报告、凯利计算器、风险仪表盘、浮盈、相关性、评分、一致性校验）
   只调用本引擎，禁止模块内手算、禁止硬编码关键数值。
 - 修复 v2.3 模板矛盾：
@@ -27,7 +27,7 @@ import math
 from statistics import mean, pstdev
 
 # ---------------------------------------------------------------------------
-# 5.1 合约规格表（v3.0 规范，唯一事实来源）
+# 5.1 合约规格表（统一计算引擎规范，唯一事实来源）
 # lot_unit = 每 0.01 手对应的合约单位数（FX=1000, XAU=1oz, XAG=50oz, USOIL=10bbl）
 # pip = 该品种 1 个报价点的价格增量
 # jpy = 是否需要用 USDJPY 将 JPY 价值折算为 USD
@@ -242,7 +242,11 @@ def score_4d(subs: dict) -> dict:
 # 5.8 事件静默
 # ---------------------------------------------------------------------------
 def event_silence(hours_to_event: float, star: int = 5) -> dict:
-    """自动计算距离事件小时数，触发静默规则。"""
+    """计算距离事件小时数与时间窗状态。
+
+    ⚠️ 2026-09-21：事件静默纪律（一票否决）已经用户指令移除——本函数降级为
+    纯时间窗计算工具，不再强制任何仓位约束，仅为兼容旧脚本保留。
+    """
     new_allowed = hours_to_event >= EVENT_SILENCE_H
     fomc_clear = hours_to_event <= FOMC_CLEAR_H
     return {

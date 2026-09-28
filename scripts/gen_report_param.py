@@ -9,13 +9,16 @@ v2.3: 评分卡4x2/宏观大事列表化/凯利标的全适配下拉/引用倒�
 所有 ECharts option 用 json.dumps 注入, 避免 f-string 花括号错误。
 """
 import os, csv, json, math, argparse
+import os as _os
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+_ROOT = _os.environ.get("KINGFOREX_HOME", _os.path.dirname(_HERE))
 
 # ============ 参数化入口 ============
 def _parse_args():
     ap = argparse.ArgumentParser(description="今日行情分析 决策增强版 · 参数化生成器 (kingforex-skill)")
     ap.add_argument("--date", default="2026-09-14", help="报告日期 YYYY-MM-DD, 用于输出文件名")
     ap.add_argument("--data", default=None, help="daily_data.json 路径 (默认 ./daily_data_<date>.json)")
-    ap.add_argument("--out", default="./output", help="输出目录")
+    ap.add_argument("--out", default=os.environ.get("KINGFOREX_DATA", "./out"), help="输出目录")
     ap.add_argument("--kline-dir", default=None, help="K线CSV目录 (默认同 --out)")
     ap.add_argument("--css", default=None, help="模板CSS路径 (默认技能 assets/decision_enhanced_sample.html)")
     return ap.parse_args()
@@ -24,7 +27,7 @@ ARGS = _parse_args()
 OUT = ARGS.out
 KL_DIR = ARGS.kline_dir or OUT
 DATA_PATH = ARGS.data or os.path.join(OUT, "daily_data_%s.json" % ARGS.date)
-SKILL_CSS = ARGS.css or "~/.workbuddy/skills/kingforex-skill/assets/decision_enhanced_sample.html"
+SKILL_CSS = ARGS.css or _os.path.join(_ROOT, "assets", "decision_enhanced_sample.html")
 with open(DATA_PATH, encoding="utf-8") as _df:
     D = json.load(_df)
 NOW = D["meta"]["now"]

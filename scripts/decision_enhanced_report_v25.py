@@ -7,7 +7,7 @@ kingforex-skill · 决策增强版报告生成器 v2.5.0
   1. 模板固化：以 assets/decision_enhanced_template.html 为唯一骨架，严禁调格式
   2. 止损止盈合理性评估：新增第 ⑭·补 节（调用 sl_tp_evaluate 引擎口径）
   3. 凯利使用注意事项：从第 ⑪ 节底部迁移至左侧「凯利公式原理」卡片红框区
-  4. 仓位评估：改为「六角度评估表 + 最终仓位选择」双段结构（参照 v15.2 情景推荐格式）
+  4. 仓位评估：改为「五角度评估表 + 最终仓位选择」双段结构（参照 v15.2 情景推荐格式；原六角度，2026-09-21 事件静默角度移除）
 
 用法:
   python decision_enhanced_report_v25.py --date 2026-09-15 --out <目录>
@@ -287,7 +287,10 @@ def evaluate_position(equity, sl_pips, pip_value_per_std, p, b,
       3. 0.5% 小账户保守口径
       4. ATR 波动匹配（按 1.5×ATR 止损距离反推，与结构止损取较宽者）
       5. 组合总额风险约束（≤5%，扣除已有敞口）
-      6. 事件静默纪律（事件窗口 → 强制 0 手）
+
+    ⚠️ 变更记录（2026-09-21 用户指令）：原角度 6「事件静默纪律（事件窗口 → 强制 0 手）」
+    已移除——event_silent / event_name 参数仅为向后兼容保留，不再参与收敛、
+    不再触发一票否决。当前为五角度收敛。
     """
     pv = pip_value_per_std * 100.0          # 每标准手每 pip 美元
 
@@ -329,22 +332,17 @@ def evaluate_position(equity, sl_pips, pip_value_per_std, p, b,
     room_pct = max(0.0, portfolio_cap_pct - open_risk_pct)
     lots_port = lots_from_risk(min(room_pct, 1.0))
 
-    # 角度 6：事件静默
-    lots_event = 0.0 if event_silent else lots_1pct
+    # (2026-09-21 用户指令) 原角度 6「事件静默」已移除：不再计算 lots_event、
+    # 不再进入收敛候选、不再触发一票否决。event_silent 参数仅兼容保留。
 
-    # ── 收敛：取各角度最小值（最保守约束），事件静默一票否决 ──
+    # ── 收敛：取各角度最小值（最保守约束）──
     candidates = [("凯利半仓", lots_kelly), ("1% 硬上限", lots_1pct),
                   ("0.5% 保守口径", lots_05pct), ("组合风险约束", lots_port)]
     if lots_atr is not None:
         candidates.append(("ATR 波动匹配", lots_atr))
-    if not event_silent:
-        candidates.append(("事件静默", lots_1pct))
 
     binding_name, binding_lots = min(candidates, key=lambda x: x[1])
-    if event_silent:
-        final_lots = 0.0
-        binding_name = "事件静默纪律（一票否决）"
-    elif f_neg:
+    if f_neg:
         final_lots = 0.0
         binding_name = "凯利负期望（否决）"
     else:
@@ -379,7 +377,6 @@ def evaluate_position(equity, sl_pips, pip_value_per_std, p, b,
             "small05": round(lots_05pct, 4),
             "atr": (round(lots_atr, 4) if lots_atr is not None else None),
             "portfolio": round(lots_port, 4),
-            "event": round(lots_event, 4),
         },
         "atr_sl_pips": (round(atr_sl_pips, 1) if atr_sl_pips is not None else None),
         "atr_mult": atr_mult, "atr": atr,
@@ -531,7 +528,7 @@ def render_position_section(pos, title="十一·补、仓位多角度评估与�
     def pct_of(lots):
         return (usd_of(lots) / eq * 100.0) if eq else 0.0
 
-    # 六角度表
+    # 五角度表
     angle_rows = [
         ("① 凯利理论（半凯利）",
          "%.2f%%" % pos["f_half"],
@@ -564,13 +561,7 @@ def render_position_section(pos, title="十一·补、仓位多角度评估与�
          ("1.5×ATR 止损 ≈ %.1f pips ｜ 与结构止损取较宽者后按 1%% 预算反推" % pos["atr_sl_pips"])
          if pos.get("atr_sl_pips") else "ATR 缺失，本角度跳过",
          "yellow" if (a.get("atr") is not None and a["atr"] < a["cap1pct"]) else ""),
-        ("⑥ 事件静默纪律",
-         "0.00%" if pos["event_silent"] else "—",
-         "0.000 手" if pos["event_silent"] else "—",
-         "$0.00" if pos["event_silent"] else "—",
-         ("事件窗口内 <b class='red'>强制空仓</b>（%s）" % pos["event_name"]) if pos["event_silent"]
-         else "无事件窗口约束",
-         "red" if pos["event_silent"] else ""),
+        # (2026-09-21 用户指令) 原角度 ⑥ 事件静默纪律行已移除
     ]
 
     arows = ""
@@ -587,7 +578,7 @@ def render_position_section(pos, title="十一·补、仓位多角度评估与�
         action = ("按 %s 约束建仓 %.3f 手（理论 %.4f 手向下取整）· 风险 $%.2f（%.2f%%）"
                   % (pos["binding"], pos["final_lots"], pos["pre_floor_lots"],
                      pos["final_risk_usd"], pos["final_risk_pct"]))
-    elif pos.get("below_min_lot") and not pos["event_silent"] and not pos["f_neg"]:
+    elif pos.get("below_min_lot") and not pos["f_neg"]:
         final_lots_txt = "0.000 手（最小手超预算 · 不可交易）"
         final_color = "yellow"
         action = ("理论手数 %.4f 手 < 最小手 %.2f 手 → 若强行下最小手，"
@@ -602,15 +593,15 @@ def render_position_section(pos, title="十一·补、仓位多角度评估与�
 
     return ("""<div class="section"><div class="section-title">📐 """ + title + """</div>
 """ + (('<div class="card-sub" style="margin-bottom:10px">' + subtitle + '</div>') if subtitle else "") + """
-<div class="sub-title">六角度评估（横向对比 · 每个角度独立给出建议手数）</div>
+<div class="sub-title">五角度评估（横向对比 · 每个角度独立给出建议手数）</div>
 <table>
 <tr><th style="width:20%">评估角度</th><th style="width:11%">风险预算</th><th style="width:12%">建议手数</th><th style="width:15%">对应风险</th><th>依据 / 约束</th></tr>""" + arows + """</table>
-<div class="card-sub" style="margin-top:8px">收敛规则: 取六角度中的<b class="yellow">最小值</b>为实际约束（最保守者胜出）；事件静默为<b class="red">一票否决</b>；凯利负期望直接否决。落地按最小手 0.01 手<b>向下取整</b>，绝不向上取整以免突破风险预算。</div>
+<div class="card-sub" style="margin-top:8px">收敛规则: 取五角度中的<b class="yellow">最小值</b>为实际约束（最保守者胜出）；凯利负期望直接否决。落地按最小手 0.01 手<b>向下取整</b>，绝不向上取整以免突破风险预算。</div>
 
 <div class="recommendation" style="margin-top:14px"><h3>🎯 最终仓位选择: """ + final_lots_txt + """ —— """ + pos["binding"] + """</h3>
 <table><tr><th style="width:16%">项目</th><th>具体操作</th></tr>
 <tr><td>评估标的</td><td class="white">""" + pos.get("symbol", "AUDJPY") + """（""" + pos.get("direction", "SELL") + """）</td></tr>
-<tr><td>仓位口径</td><td>""" + pos["binding"] + """（六角度最小值收敛）</td></tr>
+<tr><td>仓位口径</td><td>""" + pos["binding"] + """（五角度最小值收敛）</td></tr>
 <tr><td>最终手数</td><td class='""" + final_color + """'>""" + final_lots_txt + """</td></tr>
 <tr><td>单笔风险</td><td>$""" + ("%.2f" % pos["final_risk_usd"]) + """ = """ + ("%.2f%%" % pos["final_risk_pct"]) + """（账户净值 $""" + ("%.2f" % eq) + """）</td></tr>
 <tr><td>止损距离</td><td>""" + ("%.1f" % pos["sl_pips"]) + """ pips · 每标准手每 pip $""" + ("%.4f" % pos["pv_std"]) + """</td></tr>
@@ -664,7 +655,7 @@ def patch_kelly_notes(html, symbol="AUDJPY", loss05=2.87, lots05=0.003):
 
 # ── 变更④ 锚点：⑪ 节结束 → ⑫ 节开始 ──
 def patch_position_angles(html, block):
-    """变更④：在凯利节之后、相关性节之前插入六角度评估块。"""
+    """变更④：在凯利节之后、相关性节之前插入五角度评估块。"""
     marker = '<div class="section"><div class="section-title">🔗 十二、收益相关性热力图'
     if marker in html:
         html = html.replace(marker, block + marker, 1)
@@ -692,22 +683,18 @@ def main():
     # ── 实盘参数（AUDJPY 空单） ──
     SYM = "AUDJPY"
     DIRECTION = "SELL"
-    ENTRY, SL, TP, CUR = 114.573, 113.284, 109.781, 110.278
-    EQUITY, LOT = 574.23, 0.02
-    USDJPY, ATR = 154.885, 0.8617
-    SL_NEW = 111.50          # 若仍持仓建议补挂的保护性止损
-    WD_SL_PIPS = 75.0        # 预案止损距离
+    ENTRY, SL, TP, CUR = 114.573, 113.284, 109.781, 111.97327
+    EQUITY, LOT = 607.09, 0.02
+    USDJPY, ATR = 157.118, 0.8617
+    SL_NEW = 112.50          # 已挂的保护性止损
+    WD_SL_PIPS = 52.7        # 预案止损距离
     PIP_VAL_STD = 0.0651     # 每标准手每 pip（0.01 手口径 $0.0651）
 
     sltp = evaluate_sl_tp(DIRECTION, ENTRY, SL, TP, CUR, SYM,
                           EQUITY, LOT, usdjpy=USDJPY, atr=ATR)
 
-    # 事件静默判定：FOMC 09-17 02:00 / BoJ 09-18 10:00（北京）
-    EVENT_SILENT = True
-    EVENT_NAME = "FOMC 09-17 02:00 + BoJ 09-18 10:00（超级央行周）"
-
-    pos = evaluate_position(EQUITY, WD_SL_PIPS, PIP_VAL_STD, 0.625, 1.85,
-                            event_silent=EVENT_SILENT, event_name=EVENT_NAME)
+    # (2026-09-21 用户指令) 事件静默纪律已移除 → 不再传入 event_silent/event_name
+    pos = evaluate_position(EQUITY, WD_SL_PIPS, PIP_VAL_STD, 0.625, 1.85)
     pos["symbol"] = SYM
     pos["direction"] = DIRECTION
 
@@ -726,7 +713,7 @@ def main():
     print("[INFO] 模板载入 OK: %d chars" % len(html))
     print("[ENG] SL/TP 判定: %s | initRR=%.2f restRR=%.2f | 浮盈 %+.1f pip = $%.2f"
           % (sltp["verdict"], sltp["init_rr"], sltp["rest_rr"], sltp["pl_pips"], sltp["pl_usd"]))
-    print("[ENG] 仓位六角度: %s" % {k: round(v, 4) for k, v in pos["angles"].items()})
+    print("[ENG] 仓位五角度: %s" % {k: round(v, 4) for k, v in pos["angles"].items()})
     print("[ENG] 最终仓位: %.3f 手 (约束=%s)" % (pos["final_lots"], pos["binding"]))
 
     html, n3 = patch_kelly_notes(html, symbol=SYM, loss05=2.87, lots05=0.003)

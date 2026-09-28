@@ -39,7 +39,7 @@ symbol 写法: XAU-USD-SPOT / XAG-USD-SPOT / XAU-USD 等;quote 货币由符号�
   python goldprice_fetch.py --history --from 2026-09-01 --to 2026-09-30
   python goldprice_fetch.py --history --symbol XAG-USD-SPOT --from 2026-09-01 --to 2026-09-30 --out kline_XAGUSD_1d.csv
   # 指定输出目录(自动按 symbol 命名)
-  python goldprice_fetch.py --history --from 2026-01-01 --to 2026-04-21 --out-dir "./output"
+  python goldprice_fetch.py --history --from 2026-01-01 --to 2026-04-21 --out-dir "./kline"
 
 key 读取优先级: --api-key > 环境变量 GOLDPRICE_API_KEY > scripts/.goldprice_key(本地,不进 zip)。
 
