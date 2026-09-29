@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>__SYMBOL__ 持仓分析 · kingforex-skill v1.4.2</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:linear-gradient(135deg,#0a0e27 0%,#1a1f3a 50%,#0d1b2a 100%);color:#e8edf5;padding:24px;min-height:100vh}
@@ -302,7 +302,7 @@ __DISCIPLINE_BOTTOM__
 <div class="discipline-item">
 <h4>📌 9.1 仓位纪律</h4>
 <ol>
-<li><strong>单笔风险 ≤ 2% 账户</strong>：本笔原始 __RISK_PCT__% 偏大，减仓后须降至 0.5%</li>
+<li><strong>单笔风险 ≤ 1% 账户</strong>：本笔原始 __RISK_PCT__% 若偏大，减仓后须降至 0.5%</li>
 <li><strong>总组合风险 ≤ 5%</strong>：单一货币对敞口不超 3%</li>
 <li><strong>连续亏损 3 次暂停</strong>：强制平仓休息 24h</li>
 <li><strong>不加仓逆势单</strong>：H=__HURST_D__ 顺势可加，但仅在回踩到位时分批（每次 0.01 lot）</li>

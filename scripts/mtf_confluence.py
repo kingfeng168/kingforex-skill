@@ -49,6 +49,14 @@ import os
 import sys
 import datetime
 
+# 中文 Windows(cp936 控制台)下,输出含 ✗/✓/⚠ 等字符会抛 UnicodeEncodeError 并中断
+# (2026-09-28 修复; 与 kline_read.py 同源)。改为不可编码字符降级替换。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 # 复用同一技能内的引擎与抓取器(同目录)
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -58,7 +66,7 @@ import kline_read as kr          # parse_csv / parse_text / analyze / ema / atr
 import kline_fetch as kf          # fetch_one
 
 # ---------- ECharts 离线内嵌: 本地库优先, 缺失回退 CDN ----------
-_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>'
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>'
 
 
 def _inline_echarts(html_text):
@@ -859,7 +867,7 @@ footer{margin-top:40px;color:var(--mut);font-size:12px;text-align:center;border-
 
     html = """<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <title>多周期共振深度报告 · %(sym)s · %(today)s</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 %(css)s</head>
 <body><div class="wrap">
 <header class="hero">

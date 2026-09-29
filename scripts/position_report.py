@@ -24,7 +24,7 @@
   python "./scripts/position_report.py" \
     --symbol AUDJPY --direction SELL --lots 0.02 \
     --entry 114.573 --sl 112.583 --tp 109.781 \
-    --account 574 --risk-pct 2.0 \
+    --account 574 --risk-pct 1.0 \
     --out-dir "./output/持仓分析_2026-09-10"
 
 依赖：同 skill 内其他脚本（allratestoday_fetch / kline_fetch / quant_metrics / bis_fetch /
@@ -38,6 +38,14 @@ import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
 
+# 中文 Windows(cp936 控制台)下,输出含 ⚠/✗ 等字符会抛 UnicodeEncodeError 并中断整个脚本
+# (2026-09-28 修复)。改为不可编码字符降级替换,不改变控制台原生编码,中文照常显示。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 # ============ 路径配置 ============
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(SKILL_DIR, "scripts")
@@ -46,7 +54,7 @@ TEMPLATE_HTML = os.path.join(ASSETS_DIR, "position_report_template.html")
 PYTHON_BIN = sys.executable
 
 # ---------- ECharts 离线内嵌: 本地库优先, 缺失回退 CDN ----------
-_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>'
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>'
 
 
 def _inline_echarts(html_text):
@@ -626,7 +634,7 @@ USDJPY 153.546 × AUDUSD 0.72183 = 110.836 ≈ {current_price} ✅
 
 ## 八、纪律（最后）
 
-- 单笔风险 ≤ 2% 账户
+- 单笔风险 ≤ 1% 账户
 - 事件前 4h 不开新仓
 - 顺势单可加仓，逆势单必砍
 - 三大央行议息前 24h 减仓
@@ -648,8 +656,8 @@ def main():
     ap.add_argument("--sl", type=float, required=True, help="止损")
     ap.add_argument("--tp", type=float, required=True, help="止盈")
     ap.add_argument("--account", type=float, default=10000, help="账户权益 USD")
-    ap.add_argument("--risk-pct", type=float, default=2.0,
-                    help="单笔风险占净值百分比,输入 2.0 表示 2%%")
+    ap.add_argument("--risk-pct", type=float, default=1.0,
+                    help="单笔风险占净值百分比,输入 1.0 表示 1%%(框架铁律上限 1%%)")
     ap.add_argument("--out-dir", default=None, help="输出目录")
     args = ap.parse_args()
 
@@ -657,12 +665,14 @@ def main():
     direction = args.direction.upper()
 
     # 输出目录
+    # 修复(2026-09-28): 原实现在 args.out_dir 分支下未定义 date_str,随后又无条件用 date_str
+    # 覆盖 out_dir → 带 --out-dir 必抛 UnboundLocalError;不带则用户路径被静默丢弃。
+    date_str = datetime.now(CST).strftime("%Y-%m-%d")
     if args.out_dir:
         out_dir = args.out_dir
     else:
-        date_str = datetime.now(CST).strftime("%Y-%m-%d")
-    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "..", "output", "持仓分析_%s_%s" % (symbol, date_str))
+        out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "..", "output", "持仓分析_%s_%s" % (symbol, date_str))
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"[1/6] 拉取 {symbol} 实时报价...")

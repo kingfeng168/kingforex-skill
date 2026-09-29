@@ -37,8 +37,17 @@ import os
 import re
 import sys
 
+# 中文 Windows(cp936 控制台)下,输出含 ✗/✓/⚠ 等字符会抛 UnicodeEncodeError 并中断整个分析
+# (2026-09-28 修复: 实测 `kline_read.py --text ...` 在 cp936 下 exit=1)。
+# 改为不可编码字符降级替换,不改变控制台原生编码,中文照常显示。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 # ---------- ECharts 离线内嵌: 本地库优先, 缺失回退 CDN ----------
-_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>'
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>'
 
 
 def _inline_echarts(html_text):
@@ -983,7 +992,7 @@ def to_html(r, bars, symbol, tf):
                       "lineStyle": {"color": "#36cfc9"}})
     html = """<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <title>K线盘面解读 %s %s</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <style>body{background:#0b0e14;color:#e6e6e6;font-family:system-ui,'Microsoft YaHei';margin:0;padding:16px}
 h2{color:#7df9ff;text-shadow:0 0 8px #1b6} .box{background:#11151f;border:1px solid #1f2a3a;border-radius:10px;padding:12px;margin-top:12px}
 .k{color:#7df9ff} .r{color:#ff4d4f} .g{color:#52c41a}</style></head>

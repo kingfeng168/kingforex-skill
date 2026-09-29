@@ -23,7 +23,7 @@
 | **美联储官网** `federalreserve.gov` | 官方一手 | SEP 经济预测摘要(含点阵图 Dot Plot)、FOMC 声明、鲍威尔发布会讲稿 | 每次会议 | 网页(经济预测摘要 / monetary policy) |
 | **CME FedWatch** `cmegroup.com`(FedWatch Tool) | 市场隐含 | 联邦基金期货隐含的加息/降息概率路径 | 实时 | **无免费 API(需付费订阅 + OAuth)**;用 `scripts/fedwatch_csv.py` 解析网页手动导出的概率 CSV(详见第 7.8 节) |
 | **克利夫兰联储 Inflation Expectations** `clevelandfed.org` | 官方一手 | 未来通胀预期模型 | 日/周 | 网页 |
-| **IMF** `imf.org`(SDMX 3.0 API) | 国际组织一手 | IFS 国际金融统计(实际有效汇率 `PRX_REER`、官方储备、货币总量)、WEO 宏观预测 | 月/季 | **脚本** `scripts/imf_fetch.py`(详见第 7 节) |
+| **IMF** `imf.org`(SDMX 3.0 API) | 国际组织一手 | ⚠️ **2026-09-28 实测:结构可取但观测值恒为 0,当前不可供数**(旧 id `IFS`/`DOT` 亦不存在);替代见 World Bank / BIS / FRED | 月/季 | **脚本** `scripts/imf_fetch.py`(详见 §7.3) |
 | **World Bank** `worldbank.org`(Open Data API v2) | 国际组织一手 | 实际利率 `FR.INR.RINR`、CPI 通胀 `FP.CPI.TOTL.ZG`、GDP 增速 `NY.GDP.MKTP.KD.ZG`、官方汇率 `PA.NUS.FCRF`——利率平价(IRP)/套息利差、通胀差、增长 Regime | 年(多数) | **脚本** `scripts/worldbank_fetch.py`(详见第 7 节) |
 | **QuantGist** `quantgist.com`(API v1) | 聚合一手 | 经济日历/事件(`actual/forecast/surprise_pct`)、宏数据最近值(CPI/NFP/PCE/FOMC)、新闻雷达(地缘/油价/央行意外)、商品 ETF 快照(GL/USO)、情绪/意外排名 | 实时/日 | **脚本** `scripts/quantgist_fetch.py`(需 X-API-Key,详见第 7 节) |
 | **实时行情源(聚合,无需 key)** `Frankfurter/gold-api/US Treasury/exchangerate-api/新浪` | 实时/参考报价 | Frankfurter(ECB 官方日参考汇率)、gold-api.com(伦敦金 XAU 现货价,秒级)、US Treasury Fiscal Data(美债收益率/汇率)、exchangerate-api(150+ 货币)、新浪(USDCNY 即期 + 伦敦金 hf_XAU **真实时**)——盘中实时报价、事件前后价格反应监控 | 实时/日 | **脚本** `scripts/live_market_fetch.py`(详见第 7 节,均无需 key) |
@@ -36,7 +36,7 @@
 |--------|--------|----------|----------|----------|
 | **CFTC COT / TFF** `cftc.gov`(或 `cot.futures.io`) | 官方一手 | 持仓拥挤度;TFF(Traders in Financial Futures)报告覆盖欧元、日元、英镑、澳元等金融期货投机净头寸 | 每周五发布(截至周二) | **脚本** `scripts/cftc_fetch.py`(免费·无需 key·中国可直连;详见第 7.8 节);也可网页/CSV |
 | **BIS** `bis.org`(SDMX v2 API) | 国际组织一手 | 各国央行政策利率(`WS_CBPOL`)、美元汇率(`WS_XRU`)、有效汇率(`WS_EER`)、全球流动性(`WS_GLI`) | 月/季 | **脚本** `scripts/bis_fetch.py`(无需 key);详见第 7 节 |
-| **IMF COFER** `imf.org`(SDMX 3.0 API) | 国际组织一手 | 官方外汇储备币种构成——**美元储备份额**(全球去美元化 / 美元信用结构性核心指标)、各币种配置 | 季(年度详细) | **脚本** `scripts/imf_fetch.py`;详见第 7 节 |
+| **IMF COFER** `imf.org`(SDMX 3.0 API) | 国际组织一手 | ⚠️ **当前不可供数(实测 0 观测)**:官方外汇储备币种构成——美元储备份额;恢复供数后可直接使用 | 季(年度详细) | **脚本** `scripts/imf_fetch.py`;详见 §7.3 |
 | **World Bank** `worldbank.org`(Open Data API v2) | 国际组织一手 | 经常账户占 GDP(`BN.CAB.XOKA.GD.ZS`——中期汇率方向)、实际利率(`FR.INR.RINR`——套息/IRP)、外储(`FI.RES.TOTL.CD`——EM 脆弱性/干预能力)、政府债务(`GC.DOD.TOTL.GD.ZS`) | 年 | **脚本** `scripts/worldbank_fetch.py`;详见第 7 节 |
 | **QuantGist** `quantgist.com`(API v1) | 聚合一手 | 经济事件 `affected_symbols` 含 EURUSD/USDJPY/GBPUSD 等、新闻雷达地缘主题(iran-war/oil-supply/middle-east-risk)、情绪/意外排名 | 实时 | **脚本** `scripts/quantgist_fetch.py`(需 X-API-Key,详见第 7 节) |
 | **实时行情源(聚合,无需 key)** | 实时/参考报价 | Frankfurter(ECB 日参考汇率)、exchangerate-api(150+ 货币)、新浪(USDCNY **真实时** 即期)——盘中即期报价直达、事件前后汇率反应 | 实时/日 | **脚本** `scripts/live_market_fetch.py`(详见第 7 节,无需 key) |
@@ -140,23 +140,34 @@ python scripts/eia_fetch.py --preset brent --last 30
 python scripts/eia_fetch.py --route petroleum/sum/sndw --series WCRSTUS1 --freq weekly --last 24 --out "./output/eia_crude.csv"
 ```
 
-### 7.3 IMF SDMX 3.0 API（宏观 / 外汇,需联网验证）
+### 7.3 IMF SDMX 3.0 API（宏观 / 外汇）—— ⚠️ 2026-09-28 实测：结构可取，**数据不可供**
 
-- **Base**:`https://api.imf.org/external/sdmx/3.0`(用户提供的 IMF SDMX 3.0 API),可用 `--base` 切换备用节点(如 `https://sdmxcentral.imf.org/sdmx/v3`)。
-- **权威价值**:**COFER 美元储备份额**(全球官方外汇储备中美元占比,美元信用与去美元化的结构性核心指标)、IFS 实际/名义有效汇率、官方储备、WEO 宏观预测、BOP 国际收支、DOT 贸易方向——宏观与外汇研判的一手国际源。
-- **常用 dataflow**:`COFER`(储备币种构成)、`IFS`(国际金融统计)、`BOP`(国际收支)、`DOT`(贸易方向)。
-- **脚本**:`scripts/imf_fetch.py`(标准库,`--list` 列 dataflow、`--structure` 查维度、`--flow/--key` 取数、预设 `cofer/ifs/bop/dot`)。
+- **Base**:`https://api.imf.org/external/sdmx/3.0`(备用节点 `https://sdmxcentral.imf.org/sdmx/v3` 实测 TLS 连接被关闭)。
+- **✅ 已修正的正确路径**(旧路径 `/dataflow/IMF`、`/datastructure/IMF/{flow}`、`/Data/{flow}/{key}` 实测**全部 404**,已废弃):
+  - 结构清单:`GET /structure/dataflow/all/*/+` → **200**,返回 **222** 个 dataflow(含 agencyID 与 version)。
+  - 数据查询:`GET /data/dataflow/{agency}/{flow}/{version}/{key}?format=jsondata`(key 用 `all` 表全维度)。
+- **❌ 当前不可供数(实测)**:上述数据端点对 `all`、完整维度键、`dimensionAtObservation=AllDimensions`、
+  SDMX-JSON `Accept` 头、`startPeriod/endPeriod` **一律返回"结构信封 + observations = 0"**
+  (COFER / BOP / CPI / IRFCL / WEO 全部如此)。`format=csv` 亦被忽略(仍返回 JSON)。
+- **❌ 两个旧预设不存在**:`IFS` 与 `DOT` 在 IMF 全部 222 个 dataflow 中**查无此 id**(历史遗留写法,
+  已从脚本移除)。现存可用 id 示例:`COFER`(IMF.STA 7.0.1)、`BOP`(IMF.STA 21.0.0)、
+  `CPI`(IMF.STA 5.0.0)、`IRFCL`(IMF.STA 12.0.0)、`WEO`(IMF.RES 9.0.0)。
+- **脚本**:`scripts/imf_fetch.py`(`--list` 列 dataflow 实测可用;`--structure` 查维度;`--flow/--key` 取数;
+  预设 `cofer/bop/cpi/irfcl/weo`)。agency 与 version 由结构清单**实时解析**(IMF 升版无需改码)。
+  检测到 0 观测即 **exit 3 并给出替代源**,绝不把空信封当数据落盘。
 
 ```bash
-# 先确认连通性与 dataflow 列表(本环境构建时 IMF 端点 502/404,需本地验证)
+# 列 dataflow(实测可用, 用它核对 flow id 与版本)
 python scripts/imf_fetch.py --list
-# 查 COFER 维度顺序,再写 key
+# 查 COFER 维度顺序
 python scripts/imf_fetch.py --structure COFER
-# 拉全球美元储备份额相关序列(示例 key,以 --structure 为准)
-python scripts/imf_fetch.py --preset cofer --format csv --out "./output/imf_cofer.csv"
+# 取数(当前会 exit 3 并提示"无观测值"; IMF 恢复供数后本命令自动可用)
+python scripts/imf_fetch.py --preset cofer --out "./output/imf_cofer.json"
 ```
 
-> ⚠️ 透明说明:脚本编写时,构建环境对 `api.imf.org` 的 SDMX 3.0 端点返回 502/404(同一环境对 BIS 端点返回 200,判定为 IMF 服务端临时不可达或路径调整)。脚本严格按 SDMX 3.0 标准与用户基址编写;请本地用 `--list` 确认可达后再正式取数,路径变更时用 `--base` 指向可用节点。
+> ⚠️ **结论:在 IMF 恢复供数前,不要用它做投资决策依据。** 同一信息改用本技能实测可取数的源:
+> `worldbank_fetch.py`(World Bank,免 key,实测 200)、`bis_fetch.py`(BIS SDMX v2,免 key,实测 200,
+> 含政策利率/有效汇率/全球流动性)、`fred_fetch.py`(FRED,需自备 key,官方利率与曲线)。
 
 ### 7.4 World Bank Open Data API（宏观 / 外汇基本面,无需 key）
 
@@ -198,9 +209,14 @@ python scripts/quantgist_fetch.py --preset commodities --api-key $QUANTGIST_API_
 ### 7.6 实时行情聚合 API（外汇 / 黄金现货实时报价,无需 key）
 
 - **整合源**(均为本环境 2026-08-27 实测可达、免 key、纯标准库):
-  - **Frankfurter** `api.frankfurter.app`(ECB 官方参考汇率,日更,无 key / 限流宽松)——预设 `fx_ref`。
+  - **Frankfurter** `api.frankfurter.dev`(ECB 官方参考汇率,日更,无 key / 限流宽松)——预设 `fx_ref`。
+    (2026-09-28 更正:旧域 `api.frankfurter.app` **实测仍可用且返回一致**,并非"301 失效";本技能统一用 `.dev`。)
   - **gold-api.com** `api.gold-api.com`(伦敦金 XAU 现货价,秒级更新,无 key)——预设 `gold`。
-  - **US Treasury Fiscal Data** `api.fiscaldata.treasury.gov`(美债收益率/汇率,v1 路由,无 key)——预设 `ust_yield`。
+  - **US Treasury Fiscal Data** `api.fiscaldata.treasury.gov`——预设 `ust_yield`
+    (2026-09-28 口径更正:该预设改用 `v2/accounting/od/avg_interest_rates` = **存量国债平均利率(月度)**;
+    旧实现调的是 `v1/rates_of_exchange` = 外币折算**记账汇率**,完全不含收益率,属误标。
+    该系列**仍非市场收益率曲线**;10Y/2s10s/TIPS 实际利率请用 `fred_fetch.py`。
+    记账汇率改由新预设 `ust_fx` 单独提供)。
   - **exchangerate-api** `open.er-api.com`(150+ 货币,日更,无 key / 1500 req-月)——预设 `fx_all`。
   - **新浪财经** `hq.sinajs.cn`(USDCNY 即期 + 伦敦金 hf_XAU **真实时**,非官方,需 `Referer: finance.sina.com.cn` + GBK 解码)——预设 `sina`。
 - **权威价值**:补宏观源(日/月频)缺"盘中实时报价"的短板——外汇即期(USDCNY/USDCNH)、伦敦金现货、美债收益率,直接服务"重点事件发布前后价格反应"监控与盘中决策;无需 key、无成本、本环境直达。
@@ -408,27 +424,18 @@ python scripts/fred_fetch.py --series DGS10,DFII10,T10YIE --last 60
   python scripts/jin10_mcp.py codes                       # 列出可用品种代码(资源 quote://codes)
   ```
 
-### 7.12 iTick API（外汇 / 贵金属 / 期货 实时报价与 K 线,需 token）
+### 7.12 iTick API —— ❌ 已移除（v2.4.6 删除脚本；本节保留仅作历史说明）
 
-- **Base**:免费套餐 `https://api-free.itick.org`(限频 **5 次/分钟**);付费套餐 `https://api.itick.org`(用 `--base` 覆盖)。注意:免费 key **必须走 `api-free` 域名**,在 `api.itick.org` 用同样 token 会返 401。
-- **认证**:请求头 `token: <your_key>`(非 Bearer/X-API-Key)。key 可存于 `scripts/.itick_key`(单行纯文本,不进 zip);读取优先级 `--api-key` > 环境变量 `ITICK_API_KEY` > `scripts/.itick_key`。
-- **权威价值**:覆盖**外汇、贵金属、期货、加密货币**的实时报价(spot)与 K 线历史——补 Twelve Data 之外的第二权威 K 线源,且**原生带外汇/贵金属/期货 quote**,特别适合事件前后报价监控与期货价差/期现结构分析(可同时取现货与期货 quote)。
-- **区域 region**:外汇/贵金属 = `GB`;期货/原油 = `US`(脚本已按 asset 默认)。
-- **kType 枚举**:`1m=0 / 5m=4 / 15m=5 / 30m=6 / 1h=7 / 2h=8 / 4h=9 / 1d=1 / 1w=2 / 1mo=3`。
-- **常用端点**:
-  - `GET /forex/quote?region=GB&code=EURUSD` → 报价 `s/p/o/h/l/v/ch/chp/t`
-  - `GET /forex/kline?region=GB&code=XAUUSD&kType=1&limit=3` → K 线列表 `{tu,c,t,v,h,l,o}`
-  - `GET /future/quote?region=US&code=GC2506`(黄金期货,如 COMEX GC)/ `GET /future/kline?...`
-- **脚本**:`scripts/itick_fetch.py`(纯标准库;`quote` 子命令 `--asset/--region/--code`、`kline` 子命令 `--kType/--limit/--et`;429 限速优雅提示"请稍候重试",约 13 秒后避让即可)。
-
-```bash
-# 现货黄金/欧元实时报价(GB 区域,默认)
-python scripts/itick_fetch.py quote --asset forex --code XAUUSD
-# 黄金期货 COMEX GC 报价(US 区域)
-python scripts/itick_fetch.py quote --asset future --region US --code GC2506
-# 取 XAUUSD 日线最近 3 根
-python scripts/itick_fetch.py kline --asset forex --code XAUUSD --kType 1d --limit 3
-```
+- **状态**:`scripts/itick_fetch.py` **已于 v2.4.6 删除**(免费 key 过期),仓库内**不存在该脚本**。
+  2026-09-28 审计确认:本文档此前仍把 iTick 当作可用源并给出命令,属**指向已删除脚本的失效文档**,现已更正。
+- **不要执行以下任何命令**(脚本缺失,必然失败):
+  ~~`python scripts/itick_fetch.py quote --asset forex --code XAUUSD`~~
+  ~~`python scripts/itick_fetch.py quote --asset future --region US --code GC2506`~~
+- **替代方案**:
+  - 外汇/贵金属实时报价 → `scripts/live_market_fetch.py`(`--preset sina` 真实时 / `gold` / `fx_ref` / `fx_all`)。
+  - 历史 K 线 → `scripts/kline_fetch.py`(Twelve Data,需自备 key)。
+  - **期货报价/期现结构**:当前**无免费实时期货源**,请用 `scripts/futures_analysis.py basis --fut <合约:价:到期天数>`
+    **手工传入**近月合约价(现货端可取 goldprice.dev / gold-api);跨品种价差用 `spread` 子命令或 `pull --kind oil`。
 
 > ⚠️ 限频说明:免费套餐 **5 次/分钟**;连续抓取会撞 429,脚本会自动提示并建议间隔 ~13s 重试。批量演示请控制频率。
 
@@ -478,7 +485,7 @@ python scripts/oilprice_fetch.py --history --code WTI_USD --start 2026-01-01 --e
 - **期货价差**:
   - 跨期(calendar):`spread = 近月 − 远月`(正值=back/contango 反向结构信号,负值=contango);
   - 跨品种(如 WTI−Brent):可喂入历史序列 CSV 算 **z-score**(偏离均值几个标准差),辅助均值回归研判。
-- **一键拉取(pull)**:`pull --kind oil` 自动经 OilPriceAPI 算 WTI−Brent 价差;`pull --kind gold` 经 goldprice.dev 现货 + iTick GC 期货算期现结构(任一源缺失时返回 `_error:"partial"` 优雅降级,绝不杜撰)。
+- **一键拉取(pull)**:`pull --kind oil` 自动经 OilPriceAPI 算 WTI−Brent 价差;`pull --kind gold` 取 goldprice.dev / gold-api 现货算期现结构——**期货端已无免费源(iTick 已于 v2.4.6 移除)**,需用 `basis --fut <合约:价:到期天数>` 手工传入近月合约价(任一源缺失时返回 `_error:"partial"` 优雅降级,绝不杜撰)。
 - **脚本**:`scripts/futures_analysis.py`(子命令 `basis` / `spread` / `pull`)。
 
 ```bash
@@ -495,7 +502,7 @@ python scripts/futures_analysis.py pull --kind oil
 python scripts/futures_analysis.py pull --kind gold
 ```
 
-> ⚠️ 研判纪律:基差/价差仅供**结构信号**,须与库存(EIA)、持仓(CFTC)、利率(实际利率→carry 成本)三维印证;单看曲线结构不构成方向结论。goldprice.dev 在构建沙箱被 Cloudflare 拦时,`pull --kind gold` 会返回 partial,请在本机补全现货锚。
+> ⚠️ 研判纪律:基差/价差仅供**结构信号**,须与库存(EIA)、持仓(CFTC)、利率(实际利率→carry 成本)三维印证;单看曲线结构不构成方向结论。2026-09-28 实测:goldprice.dev / gold-api 在本机均可直连(`pull --kind gold` 的现货锚正常);若某源缺失,脚本返回 partial,请手工传入。
 
 ### 7.16 qveris MCP 金融数据市场(金银/外汇/宏观,按调用计费)
 
@@ -547,7 +554,7 @@ python scripts/qveris_fetch.py credits
 
 ### 7.17 Frankfurter 免费外汇参考汇率(独立脚本,无需 key)
 
-- **Base**:`https://api.frankfurter.dev/v1`(旧 `api.frankfurter.app` 已 301 失效,须统一用 `.dev`)。
+- **Base**:`https://api.frankfurter.dev/v1`(2026-09-28 更正:旧域 `api.frankfurter.app` **实测 200 且数据一致**,此前"已 301 失效"的说法不成立;本技能为一致性统一使用 `.dev`)。
 - **数据源**:由**欧洲央行(ECB)官方每日参考汇率**驱动的开源公共 API——**无认证、无 key、无明确请求上限**(仅基础防滥用)。
 - **数据性质**:**ECB 每日参考汇率,仅工作日更新**(非实时 tick);**仅含法币,不含 XAU 黄金 / XAG 白银**(贵金属请用 goldprice.dev / WGC-LBMA / qveris)。
 - **与 AllRatesToday 互补**:Frankfurter = **日参考**(权威、工作日、免 key);AllRatesToday(§7.18)= **实时中间价**(约 60 秒刷新、需 key)。二者叠加覆盖"日级研判 + 盘中监控"。

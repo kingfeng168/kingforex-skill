@@ -148,6 +148,30 @@ def fetch(path, params, api_key, timeout=30):
         return None, "%s: %s" % (type(e).__name__, str(e)[:200])
 
 
+def preflight(timeout=15, force=False):
+    """QuantGist API 可用性预检。
+
+    2026-09-28 实测: api.quantgist.com 全路径 502(Cloudflare Bad gateway)——
+    `/`、`/docs`、`/v1/health`、`/v1/calendar`、`/v1/usage` 全部 502, 13 个预设
+    100% 不可用(官网 quantgist.com 正常 200, 说明是 API 子域后端故障)。
+    本预检把"服务不可用"与"key/套餐问题"区分开: 4xx 视为服务在线(是鉴权/套餐问题,
+    交由 fetch() 报具体错), 5xx / 超时 / 连接失败视为服务不可用 → 提前退出, 不再
+    逐个预设白跑一遍。
+    """
+    url = BASE + "/health"
+    req = urllib.request.Request(url, headers={"User-Agent": "kingforex-skill/quantgist_fetch",
+                                               "X-API-Key": "preflight-probe"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return True, "HTTP %s" % r.status
+    except urllib.error.HTTPError as e:
+        if e.code < 500:
+            return True, "HTTP %s(服务在线)" % e.code
+        return False, "HTTP %s" % e.code
+    except Exception as e:
+        return False, "%s: %s" % (type(e).__name__, str(e)[:120])
+
+
 def extract_items(obj):
     if isinstance(obj, list):
         return obj
@@ -216,6 +240,8 @@ def main():
     ap.add_argument("--json", action="store_true", help="输出原始 JSON 而非 CSV")
     ap.add_argument("--out", help="输出文件路径 (省略则打印到 stdout)")
     ap.add_argument("--list-presets", action="store_true", help="列出所有预设后退出")
+    ap.add_argument("--force", action="store_true",
+                    help="跳过服务可用性预检, 强行请求(排查用)")
     args = ap.parse_args()
 
     if args.list_presets:
@@ -225,6 +251,19 @@ def main():
 
     if not args.preset:
         ap.error("请指定 --preset (或 --list-presets 查看可选值)")
+
+    # 预检: 服务端不可用时直接说明原因, 避免 13 个预设逐个白跑
+    if not args.force:
+        alive, detail = preflight()
+        if not alive:
+            sys.stderr.write(
+                "❌ QuantGist API 当前不可用（预检 %s）\n"
+                "   实测(2026-09-28): api.quantgist.com 的 /、/docs、/v1/health、/v1/calendar、\n"
+                "   /v1/usage 全部返回 502(Cloudflare Bad gateway) —— API 后端故障,\n"
+                "   与 key/套餐无关(官网 quantgist.com 正常)。13 个预设均不可用。\n"
+                "   替代方案: 事件日历/情报改用 jin10_mcp.py(金十 MCP) + wscn_fetch.py(见闻 MCP)。\n"
+                "   如坚持尝试, 加 --force。\n" % detail)
+            sys.exit(3)
 
     api_key = get_key(args)
     path, params = build_path(args.preset, args)

@@ -249,26 +249,91 @@ def realized_vol(rets, window=21):
     return out
 
 # ---------------------------------------------------------------------------
-# 时间序列诊断
+# 时间序列诊断 · Hurst 指数
 # ---------------------------------------------------------------------------
+# 2026-09-28 重写。问题: 原实现用非重叠分段 + 未做偏误修正的 R/S, 在 n≈200 的日线上
+# **系统性高估 H**(实测该技能自己的报告里 AUDJPY 0.96 / USDKRW 0.96; 本机 60 次
+# 随机游走对照的均值高达 0.984 —— 即纯随机序列也会被判成"强趋势"), 从而让
+# "第四维量化验证"恒为通过。实测对照(n=200, 60 次随机游走, 理论 H=0.500):
+#     R/S 非重叠无修正      均值 0.984   ← 原实现
+#     R/S 重叠 + Anis-Lloyd 均值 0.840   ← 加修正后仍显著有偏
+#     DFA-1 (smin=8, smax=n/4) 均值 0.505  ← 近乎无偏, 故取为主估计量
+# 对真实持续性序列(AR(1) φ=0.3)DFA-1 给出 0.667(正确 >0.5), R/S 给出 0.836(被偏误污染)。
+# 结论: 主估计量 = DFA-1; R/S 仅作历史对照并明确标注有偏;
+#       判定显著性一律以**自助法随机游走带(5%/95%)**为准, 不再用固定 0.45/0.55 阈值。
 
-def hurst_rs(prices, max_lag=None):
-    """R/S 法估算 Hurst 指数。
-    H < 0.5 → 均值回归；H = 0.5 → 随机游走；H > 0.5 → 趋势。
+def _profile(prices):
+    """DFA 的 profile: log 价格 → log 收益去均值后累计。"""
+    lp = [math.log(p) for p in prices if p > 0]
+    if len(lp) < 3:
+        return []
+    r = [lp[i] - lp[i - 1] for i in range(1, len(lp))]
+    m = mean(r)
+    out = []
+    acc = 0.0
+    for x in r:
+        acc += x - m
+        out.append(acc)
+    return out
+
+
+def hurst_dfa(prices, smin=8, smax=None, order=1):
+    """Detrended Fluctuation Analysis(DFA-1)估算 Hurst 指数 —— **主估计量**。
+
+    H ≈ 0.5 随机游走; H > 0.5 持续性(趋势); H < 0.5 反持续性(均值回归)。
+    实测 n=200 随机游走下均值 0.505(sd 0.081), 偏误 ≈ 0.005。
     """
+    y = _profile(prices)
+    n = len(y)
+    if n < 64:
+        return None
+    smax = smax or max(smin + 1, n // 4)
+    scales = []
+    s = smin
+    while s <= smax:
+        scales.append(int(s))
+        s = max(s + 1, int(s * 1.25))
+    xs, ys = [], []
+    for s in scales:
+        nseg = n // s
+        if nseg < 2:
+            continue
+        fs = []
+        for k in range(nseg):
+            seg = y[k * s:(k + 1) * s]
+            m = len(seg)
+            if m < 3:
+                continue
+            mx = (m - 1) / 2.0
+            my = mean(seg)
+            num = sum((i - mx) * (seg[i] - my) for i in range(m))
+            den = sum((i - mx) ** 2 for i in range(m))
+            b = num / den if den else 0.0
+            a = my - b * mx
+            res = [seg[i] - (a + b * i) for i in range(m)]
+            fs.append(math.sqrt(sum(v * v for v in res) / m))
+        f = mean(fs) if fs else 0.0
+        if f > 0:
+            xs.append(math.log(s))
+            ys.append(math.log(f))
+    return _fit_H(list(zip(xs, ys, [0] * len(xs))))
+
+
+def _rs_curve(prices, max_lag=None):
+    """R/S 曲线: 返回 [(log(n), log(R/S)), ...](未做偏误修正)。"""
     n = len(prices)
     if n < 32:
-        return None
+        return []
     if max_lag is None:
         max_lag = n // 4
-    log_rs = []
-    log_n = []
-    for lag in range(8, max_lag + 1, max(1, (max_lag - 8) // 16)):
+    pts = []
+    step = max(1, (max_lag - 8) // 16)
+    for lag in range(8, max_lag + 1, step):
         rs_list = []
-        for start in range(0, n - lag, lag):
+        # 重叠分段(步长自适应, 每 lag 最多约 50 段)提升小样本稳定性
+        sub = max(1, (n - lag) // 50)
+        for start in range(0, n - lag + 1, sub):
             segment = prices[start : start + lag]
-            if len(segment) < lag:
-                continue
             m = mean(segment)
             dev = [x - m for x in segment]
             cum = []
@@ -281,20 +346,104 @@ def hurst_rs(prices, max_lag=None):
             if s_dev > 0:
                 rs_list.append(r / s_dev)
         if rs_list:
-            log_rs.append(math.log(mean(rs_list)))
-            log_n.append(math.log(lag))
-    if len(log_n) < 3:
+            pts.append((math.log(lag), math.log(mean(rs_list)), lag))
+    return pts
+
+
+def _anis_lloyd_expected_rs(n):
+    """Anis-Lloyd/Peters 随机游走下 E[R/S]_n 的理论值(用于偏误修正)。"""
+    if n <= 1:
+        return 0.0
+    if n <= 340:
+        s = sum(math.sqrt((n - i) / i) for i in range(1, n))
+        return ((n - 0.5) / n) * (1.0 / math.sqrt(n * math.pi / 2.0)) * s
+    return ((n - 0.5) / n) * (1.0 / math.sqrt(n * math.pi / 2.0))
+
+
+def _fit_H(pts):
+    if len(pts) < 3:
         return None
-    # 线性拟合 log(R/S) = H * log(n) + c
-    n_pts = len(log_n)
-    mx = mean(log_n)
-    my = mean(log_rs)
-    num = sum((log_n[i] - mx) * (log_rs[i] - my) for i in range(n_pts))
-    den = sum((log_n[i] - mx) ** 2 for i in range(n_pts))
-    if den == 0:
-        return None
-    H = num / den
-    return H
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    mx, my = mean(xs), mean(ys)
+    num = sum((xs[i] - mx) * (ys[i] - my) for i in range(len(xs)))
+    den = sum((xs[i] - mx) ** 2 for i in range(len(xs)))
+    return (num / den) if den else None
+
+
+def hurst_rs(prices, max_lag=None):
+    """R/S 法 Hurst(**已做 Anis-Lloyd 修正, 但仍有偏 —— 仅作历史对照**)。
+
+    ⚠️ 2026-09-28 实测(n=200, 60 次随机游走, 理论 H=0.500):
+        本函数(重叠分段 + Anis-Lloyd)均值 **0.840** ← 仍显著高估;
+        主估计量请用 `hurst_dfa()`(同条件下均值 0.505)。
+    保留本函数仅为与历史报告对比, **不得单独用于"是否趋势市"的判定**。
+    """
+    pts = _rs_curve(prices, max_lag)
+    corrected = []
+    for lx, ly, lag in pts:
+        exp_rs = _anis_lloyd_expected_rs(lag)
+        rs_obs = math.exp(ly)                      # 该 lag 的观测平均 R/S
+        rs_adj = rs_obs - exp_rs + math.sqrt(lag * math.pi / 2.0)   # Anis-Lloyd 修正
+        corrected.append((lx, math.log(rs_adj if rs_adj > 1e-9 else 1e-9)))
+    return _fit_H(corrected if len(corrected) >= 3 else pts)
+
+
+def hurst_rs_raw(prices, max_lag=None):
+    """原始(无修正)R/S 估计。实测随机游走均值 0.984, 仅用于展示偏误量级。"""
+    return _fit_H(_rs_curve(prices, max_lag))
+
+
+def hurst_significance(prices, n_boot=100, max_lag=None, seed=20260928):
+    """Hurst 显著性与随机游走零假设带(自助法, 基于 **DFA-1**)。
+
+    做法: 对收益序列做**有放回自举**(保留均值与波动尺度), 重建同分布的随机游走路径,
+    用同一估计量(DFA-1)重算 H, 取 5%/95% 分位作为"与随机游走不可区分"的区间。
+    返回 dict: {h, h_rs, lo, hi, n_boot, verdict}
+      h        : DFA-1 点估计(主)
+      h_rs     : R/S 估计(有偏, 仅参考)
+      lo/hi    : 随机游走带(5%/95%)
+      verdict  : 趋势显著 / 均值回归显著 / 与随机游走不可区分 / 样本不足 / 未做显著性检验
+    """
+    n = len(prices)
+    out = {"h": None, "h_rs": None, "lo": None, "hi": None,
+           "n_boot": 0, "verdict": "样本不足"}
+    if n < 32:
+        return out
+    h = hurst_dfa(prices, smax=max_lag)
+    out["h"] = h
+    out["h_rs"] = hurst_rs(prices, max_lag)
+    if h is None or n_boot <= 0:
+        out["verdict"] = "未做显著性检验"
+        return out
+    rnd = __import__("random").Random(seed)
+    steps = [prices[i + 1] - prices[i] for i in range(n - 1)]
+    mu = mean(steps)
+    dev = [s - mu for s in steps]
+    hs = []
+    for _ in range(int(n_boot)):
+        path = [prices[0]]
+        acc = prices[0]
+        for _i in range(n - 1):
+            acc += mu + dev[rnd.randrange(len(dev))]
+            path.append(acc)
+        _hb = hurst_dfa(path, smax=max_lag)
+        if _hb is not None:
+            hs.append(_hb)
+    if len(hs) < 20:
+        out["verdict"] = "自助样本不足"
+        return out
+    hs.sort()
+    lo = hs[int(0.05 * len(hs))]
+    hi = hs[min(len(hs) - 1, int(0.95 * len(hs)))]
+    out["lo"], out["hi"], out["n_boot"] = round(lo, 3), round(hi, 3), len(hs)
+    if h > hi:
+        out["verdict"] = "趋势显著"
+    elif h < lo:
+        out["verdict"] = "均值回归显著"
+    else:
+        out["verdict"] = "与随机游走不可区分"
+    return out
 
 def autocorr_lag1(rets):
     n = len(rets)
@@ -367,7 +516,7 @@ def fmt_pct(x, d=2):
 def fmt_num(x, d=4):
     return f"{x:.{d}f}" if x is not None else "—"
 
-def build_report(prices, rets, periods_per_year, risk_free):
+def build_report(prices, rets, periods_per_year, risk_free, n_boot=100):
     rep = OrderedDict()
     if rets:
         rep["基础收益"] = annualized_metrics(rets, periods_per_year, risk_free)
@@ -385,7 +534,16 @@ def build_report(prices, rets, periods_per_year, risk_free):
             rep["已实现波动率_21d(年化)"] = rv[-1] * math.sqrt(periods_per_year) if rv else None
             rep["自相关_lag1"] = autocorr_lag1(rets)
             rep["半衰期(bar)"] = half_life(rets)
-        rep["Hurst指数"] = hurst_rs(prices)
+        # Hurst: 主估计量 = DFA-1(实测近乎无偏); R/S 仅作对照; 判定以自助法随机游走带为准
+        rep["Hurst指数"] = hurst_dfa(prices)
+        if n_boot:
+            _hs = hurst_significance(prices, n_boot=n_boot)
+            rep["Hurst_DFA"] = _hs["h"]
+            rep["Hurst_RS_有偏"] = _hs["h_rs"]
+            rep["Hurst_随机游走带"] = [_hs["lo"], _hs["hi"]]
+            rep["Hurst_判定"] = _hs["verdict"]
+            if _hs["h"] is not None:
+                rep["Hurst指数"] = _hs["h"]
         rep["Z-score_63d"] = rolling_zscore(prices, 63)
     return rep
 
@@ -464,8 +622,25 @@ def render_text(rep, n_obs, last_price, first_date, last_date):
         else:
             lines.append(f"  均值回归半衰期   — (phi≥1 不收敛或样本不足)")
         if H is not None:
-            tag = "强趋势" if H > 0.55 else ("强均值回归" if H < 0.45 else "随机游走")
-            lines.append(f"  Hurst 指数       {fmt_num(H, 3)}  [{tag}]")
+            # 修复(2026-09-28): 不用固定 0.45/0.55 阈值下结论 —— 原 R/S 在 n≈200 时
+            # 系统性高估(实测随机游走均值 0.984, 加修正后仍 0.840), 会把随机游走判成趋势。
+            # 现主估计量为 DFA-1(随机游走实测均值 0.505), 且显著性一律以自助法带为准。
+            verdict = rep.get("Hurst_判定")
+            Hrs = rep.get("Hurst_RS_有偏")
+            band = rep.get("Hurst_随机游走带")
+            if verdict:
+                tag = {"趋势显著": "趋势显著(高于随机游走带上沿)",
+                       "均值回归显著": "均值回归显著(低于带下沿)",
+                       "与随机游走不可区分": "与随机游走不可区分 → 不得据此判趋势",
+                       "未做显著性检验": "未做显著性检验"}.get(verdict, verdict)
+            else:
+                tag = "未做显著性检验"
+            lines.append(f"  Hurst 指数(DFA-1) {fmt_num(H, 3)}  [{tag}]")
+            if Hrs is not None or band:
+                lines.append("    (R/S 对照 %s, 已知偏高 ｜ 随机游走带 %s)"
+                             % (fmt_num(Hrs, 3) if Hrs is not None else "—",
+                                "[%s, %s]" % (fmt_num(band[0], 3), fmt_num(band[1], 3))
+                                if band else "—"))
         if z is not None:
             tag = "高位" if z > 1.5 else ("低位" if z < -1.5 else "中性区间")
             lines.append(f"  Z-score (63d)    {fmt_num(z, 2)}  [{tag}]")
@@ -473,7 +648,9 @@ def render_text(rep, n_obs, last_price, first_date, last_date):
 
     lines.append("=" * 60)
     lines.append("使用提示: 厚尾 + 偏度负 → 真实 VaR > 参数 VaR，仓位需打折；")
-    lines.append("           H<0.45 适合均值回归策略；H>0.55 适合趋势跟踪。")
+    lines.append("           Hurst 已做 Anis-Lloyd 偏误修正, 且须以自助法随机游走带判定显著性：")
+    lines.append("           只有 H 落在带外(趋势显著/均值回归显著)才可据此选策略；")
+    lines.append("           落在带内 = 与随机游走不可区分, 不得据此判趋势。")
     lines.append("           详细方法论见 references/quant_finance.md。")
     lines.append("=" * 60)
     return "\n".join(lines)
@@ -513,6 +690,8 @@ def main():
     ap.add_argument("--risk-free", type=float, default=0.0, help="无风险年化利率（用于 Sharpe/Sortino）")
     ap.add_argument("--json", action="store_true", help="输出结构化 JSON")
     ap.add_argument("--corr-b", action="store_true", help="同时计算与 --csv-b 的皮尔逊相关系数")
+    ap.add_argument("--boot", type=int, default=100,
+                    help="Hurst 显著性自助抽样次数(默认 100; 0=跳过显著性检验)")
     args = ap.parse_args()
 
     pairs = load_pairs(args)
@@ -522,7 +701,7 @@ def main():
 
     prices = [p for _, p in pairs]
     rets = log_returns(prices)
-    rep = build_report(prices, rets, args.periods_per_year, args.risk_free)
+    rep = build_report(prices, rets, args.periods_per_year, args.risk_free, args.boot)
     rep["_prices"] = prices  # 给 render_text 用回撤
 
     if args.corr_b and args.csv_b:
@@ -534,14 +713,24 @@ def main():
             rep["相关性_对数收益_pearson"] = pearson_corr(rets[-n:], rets_b[-n:])
 
     if args.json:
+        # 修复(2026-09-28): 原实现 `out[k] = v if v is None or (isinstance(v, float) and
+        # math.isfinite(v)) else None` 会把 **list / str / int / bool 全部吞成 None**
+        # (导致 Hurst_随机游走带、Hurst_判定 等字段在 --json 里恒为 null)。
+        # 现改为递归清洗: 仅把非有限 float 置 None, 其余类型原样保留。
+        def _clean(v):
+            if isinstance(v, float):
+                return v if math.isfinite(v) else None
+            if isinstance(v, dict):
+                return {kk: _clean(vv) for kk, vv in v.items()}
+            if isinstance(v, (list, tuple)):
+                return [_clean(x) for x in v]
+            return v
+
         out = OrderedDict()
         for k, v in rep.items():
             if k.startswith("_"):
                 continue
-            if isinstance(v, dict):
-                out[k] = {kk: (vv if not isinstance(vv, float) or math.isfinite(vv) else None) for kk, vv in v.items()}
-            else:
-                out[k] = v if v is None or (isinstance(v, float) and math.isfinite(v)) else None
+            out[k] = _clean(v)
         out["meta"] = {
             "n_obs": len(pairs),
             "first_date": pairs[0][0],
@@ -550,7 +739,10 @@ def main():
             "periods_per_year": args.periods_per_year,
             "risk_free": args.risk_free,
         }
-        print(json.dumps(out, ensure_ascii=False, indent=2, default=lambda o: round(o, 6) if isinstance(o, float) else str(o)))
+        # ensure_ascii=True: 输出纯 ASCII 转义 JSON —— 中文键在 cp936 管道/GBK 控制台
+        # 下也能被下游正确解析(2026-09-28 修复机器可读性)。
+        print(json.dumps(out, ensure_ascii=True, indent=2,
+                         default=lambda o: round(o, 6) if isinstance(o, float) else str(o)))
     else:
         print(render_text(rep, len(pairs), prices[-1], pairs[0][0], pairs[-1][0]))
 

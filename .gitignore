@@ -25,6 +25,13 @@ scripts/output/
 .cftc_cache/
 *.zip
 
+# 个人财务数据（2026-09-28 补充）：含真实账户权益/持仓的产物绝不入库
+scripts/daily_data_*.json
+daily_data_*.json
+*_sample.html
+KingForex数据/
+/本地版/
+
 # 编辑器 / 系统
 .DS_Store
 Thumbs.db

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""今日行情分析 v2.8.1 决策增强版 生成器 (kingforex-skill) · 2026-09-21 版
+"""今日行情分析 v2.9.0 决策增强版 生成器 (kingforex-skill) · 2026-09-21 版
 (2026-09-21 用户指令: 事件静默纪律(一票否决)整族移除 —— 六·补节/仓位角度⑥/
   事件纪律横幅/纪律卡事件条目全部下线; 仓位收敛改为五角度)
 基准时间: 2026-09-18 13:50 GMT+8（数据层由 build_gen_20260916.py 注入, 渲染层继承 v2.5.2 冻结模板）
@@ -16,6 +16,15 @@ v2.5.6 授权调准（用户 2026-09-18 发出「调准格式」指令）:
 import os, csv, json, math, sys
 from datetime import datetime, timezone, timedelta as _td
 
+# 中文 Windows(cp936 控制台)下,print 含 ⑪/⏱ 等字符会抛 UnicodeEncodeError 并中断整个
+# 生成流程(2026-09-28 修复: 旗舰入口在中文 Windows 上必然崩在此处)。
+# 改为不可编码字符降级替换,不改变控制台原生编码,中文照常显示。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 import decision_enhanced_report_v25 as V25          # noqa: E402
@@ -25,52 +34,93 @@ import re as _re
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
 _ROOT = _os.environ.get("KINGFOREX_HOME", _os.path.dirname(_HERE))
 
-# 输出目录解析优先级(v2.6.0 修复硬编码):
-#   1) KINGFOREX_DATA 环境变量(迁移包/自检显式指定)
+# 输出目录解析(2026-09-28 修复: 删除机器私有兜底路径):
+#   1) KINGFOREX_DATA 环境变量(须已存在)
 #   2) <包根>/KingForex数据/output/<最新日期子目录>
-#   3) 实盘目录 D:/R12/美日输出/FOREX/<日期>(本机原有行为, 兜底)
-# 修复动因: 原为纯硬编码 R12 路径 → 迁移到新机器后返回码 0 但产物写到不存在
-# 的目录(或老机器目录), 表现为「静默失败: 成功但无产物」。
+#   3) 两者都不可用 → **报错退出**, 不再回退到任何技能目录之外的绝对路径
+# 修复动因: 原实现兜底命中 r"D:/R12/美日输出/FOREX"(作者机器私有目录),
+# 会在任意用户机器上产生"技能外静默写盘"; 且末级兜底把日期目录写死为 2026-09-18。
 _OUT_ENV = _os.environ.get("KINGFOREX_DATA", "").strip()
-if _OUT_ENV and _os.path.isdir(_OUT_ENV):
-    OUT = _OUT_ENV
-else:
-    # 只认形如 YYYY-MM-DD 的日期目录, 避免选中 data/ _logs/ 等辅助目录
-    _date_rx = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
-    _LOCAL = _os.path.join(_ROOT, "KingForex数据", "output")
+_date_rx = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_LOCAL = _os.path.join(_ROOT, "KingForex数据", "output")
+
+
+def _resolve_out():
+    if _OUT_ENV:
+        if not _os.path.isdir(_OUT_ENV):
+            raise SystemExit("[输出目录无效] KINGFOREX_DATA=%s 不存在或不是目录" % _OUT_ENV)
+        return _OUT_ENV
     _subs = []
     if _os.path.isdir(_LOCAL):
         _subs = sorted([d for d in _os.listdir(_LOCAL)
-                        if _date_rx.match(d)
-                        and _os.path.isdir(_os.path.join(_LOCAL, d))])
+                        if _date_rx.match(d) and _os.path.isdir(_os.path.join(_LOCAL, d))])
     if _subs:
-        OUT = _os.path.join(_LOCAL, _subs[-1])
-    else:
-        _R12 = r"D:/R12/美日输出/FOREX"
-        _r12 = []
-        if _os.path.isdir(_R12):
-            _r12 = sorted([d for d in _os.listdir(_R12)
-                           if _date_rx.match(d)
-                           and _os.path.isdir(_os.path.join(_R12, d))])
-        OUT = (_os.path.join(_R12, _r12[-1]) if _r12 else
-               _os.path.join(_ROOT, "KingForex数据", "output", "2026-09-18"))
+        return _os.path.join(_LOCAL, _subs[-1])
+    raise SystemExit(
+        "[未指定输出目录] 本技能不再回退到机器私有绝对路径(原 D:/R12 兜底已于 2026-09-28 删除)。\n"
+        "  请二选一:\n"
+        "    1) 设置环境变量 KINGFOREX_DATA=<已存在的输出目录>\n"
+        "    2) 创建目录 %s\\<YYYY-MM-DD>\\ 并在其下放 kline/ 的 7 个日线 CSV\n"
+        % _LOCAL)
+
+
+OUT = _resolve_out()
 
 _NOW_TS = datetime.now(timezone(_td(hours=8)))
 NOW = _NOW_TS.strftime("%Y-%m-%d %H:%M GMT+8")
 NOW_DATE = _NOW_TS.strftime("%Y-%m-%d")
 NOW_HM = _NOW_TS.strftime("%H:%M")
-# ── 实时价格刷新(生成时锚定当前行情, 失败回退至最近验证快照) ──
+
+# ── 离线/陈旧数据开关(2026-09-28 新增) ──
+# 默认 **拒绝** 在缺凭据或数据陈旧时静默产出报告; 显式设置才允许(用于离线出图)。
+_ALLOW_STALE = (_os.environ.get("KINGFOREX_ALLOW_STALE", "").strip().lower() in ("1", "true", "yes")
+                or "--allow-stale" in sys.argv)
+_MAX_LAG_DAYS = int(_os.environ.get("KINGFOREX_MAX_LAG_DAYS", "3") or 3)
+
+# ── 实时价格刷新(生成时锚定当前行情) ──
+# 修复(2026-09-28): 原实现缺 scripts/.td_key 时**静默回退硬编码旧价**
+# (USDJPY_RATE=157.11787 / POS_CUR=111.97327), 产出"页头今天、正文旧日期"的混杂报告,
+# 直接违反 SKILL.md「严禁静默以旧充新」铁律。现改为: 缺凭据/取价失败即报错退出,
+# 仅在显式 KINGFOREX_ALLOW_STALE=1(或 --allow-stale) 时才允许降级。
+_TD_KEY_PATH = _os.path.join(_HERE, ".td_key")
+
+
+def _td_key():
+    """Twelve Data key: 环境变量 TWELVEDATA_API_KEY > scripts/.td_key。"""
+    _k = _os.environ.get("TWELVEDATA_API_KEY", "").strip()
+    if _k:
+        return _k
+    if _os.path.isfile(_TD_KEY_PATH):
+        with open(_TD_KEY_PATH, "r", encoding="utf-8") as _f:
+            return _f.read().strip()
+    return None
+
+
 def _td_price(sym):
     try:
         import urllib.request, urllib.parse
-        _k = open(os.path.join(_HERE, ".td_key")).read().strip()
+        _k = _td_key()
+        if not _k:
+            sys.stderr.write("LIVE_FETCH_WARN %s: 无 Twelve Data key\n" % sym)
+            return None
         _u = "https://api.twelvedata.com/price?symbol=%s&apikey=%s" % (urllib.parse.quote(sym), _k)
         _d = json.loads(urllib.request.urlopen(_u, timeout=15).read().decode())
         return float(_d["price"])
     except Exception as _e:
         sys.stderr.write("LIVE_FETCH_WARN %s: %s\n" % (sym, _e)); return None
+
+
 _LIVE_AJ = _td_price("AUD/JPY")
 _LIVE_UJ = _td_price("USD/JPY")
+if not _ALLOW_STALE and (_LIVE_UJ is None or _LIVE_AJ is None):
+    raise SystemExit(
+        "[实时行情不可用 · 拒绝出报告]\n"
+        "  USDJPY 实时价: %s ; AUDJPY 实时价: %s\n"
+        "  原因多为: 缺少 scripts/.td_key(或 TWELVEDATA_API_KEY) / 网络不可达 / 限流。\n"
+        "  修复说明(2026-09-28): 原实现在缺 key 时静默回退硬编码旧价, 产出"
+        "「页头今天、正文 2026-09-18」的混杂报告。现改为默认拒绝。\n"
+        "  如确需离线出图(数据将为快照), 请显式设置 KINGFOREX_ALLOW_STALE=1 或加 --allow-stale。"
+        % (_LIVE_UJ if _LIVE_UJ is not None else "失败", _LIVE_AJ if _LIVE_AJ is not None else "失败"))
 SKILL_CSS = _os.path.join(_ROOT, "assets", "decision_enhanced_sample.html")
 
 # ---------- 账户状态 (09-20: 空仓 —— AUDJPY 0.02 手已全部获利了结, 平仓参考价=末根收盘) ----------
@@ -254,6 +304,27 @@ _missing = [s for s, _r in klines.items() if not _r]
 if _missing:
     raise SystemExit("[数据缺失] 未找到以下品种的日线 CSV: %s" % (", ".join(_missing),))
 
+# ── 数据基准日(取自 K 线末根) + 鲜度门禁 (2026-09-28 新增) ──
+# 修复动因: 原实现把数据层的 2026-09-18 字面量与 NOW(生成时刻) 混用,
+# 产出"页头今天、正文 09-18"的报告。现先算出真实数据基准日, 再据此改写全部
+# 「数据截至」类文字, 并在收尾做一致性门禁(见 freshness_gate)。
+_LAST_BARS = {s: rows[-1][0][:10] for s, rows in klines.items() if rows}
+DATA_AS_OF = max(_LAST_BARS.values()) if _LAST_BARS else NOW_DATE
+try:
+    _DATA_LAG = (datetime.strptime(NOW_DATE, "%Y-%m-%d")
+                 - datetime.strptime(DATA_AS_OF, "%Y-%m-%d")).days
+except Exception:
+    _DATA_LAG = 0
+print("[数据基准] 日K末根 = %s | 报告生成 = %s | 滞后 %d 天" % (DATA_AS_OF, NOW, _DATA_LAG))
+print("[数据基准] 各标的末根: %s"
+      % ", ".join("%s %s" % (k, v) for k, v in sorted(_LAST_BARS.items())))
+if _DATA_LAG > _MAX_LAG_DAYS and not _ALLOW_STALE:
+    raise SystemExit(
+        "[数据陈旧 · 拒绝出报告] 日K末根 = %s, 距今 %d 天 > 允许上限 %d 天。\n"
+        "  继续产出会得到「页头 %s、正文 %s」的混杂报告(即 2026-09-28 审计发现的缺陷)。\n"
+        "  请先用 kline_fetch.py 更新 kline/ 下的 7 个日线 CSV, 或显式设置 KINGFOREX_ALLOW_STALE=1。"
+        % (DATA_AS_OF, _DATA_LAG, _MAX_LAG_DAYS, NOW_DATE, DATA_AS_OF))
+
 def chart_candlestick(sym, rows, marklines=None, title=None):
     dates = [r[0] for r in rows]
     data = [[r[1], r[4], r[3], r[2]] for r in rows]
@@ -325,30 +396,19 @@ def quant_block(sym):
     sortino = mu/(math.sqrt(sum(x*x for x in rs if x < 0)/(sum(1 for x in rs if x < 0) or 1)))*math.sqrt(252) if sd else 0
     skew = sum((x-mu)**3 for x in rs)/n/(sd**3) if sd else 0
     def hurst(s):
-        """R/S Hurst —— 对 log 价格序列计算（趋势持续性的标准口径）。
-        修正 v2.4.2：原实现作用在「收益」序列上，返回值偏低且口径不符。"""
-        lp = [math.log(x) for x in s if x > 0]
-        lags = [l for l in (4, 8, 16, 32) if l <= len(lp) // 2]
-        if len(lags) < 2:
+        """Hurst —— 统一委托 quant_metrics.hurst_dfa（唯一事实来源）。
+
+        修复(2026-09-28): 原为本地 R/S 实现(4/8/16/32 四个 lag、非重叠、未做偏误修正),
+        在 n≈200 时系统性高估(实测随机游走均值 0.984), 使"趋势型"判定恒真。
+        现用 DFA-1(随机游走实测均值 0.505); 模块不可用时返回 0.5(不判趋势)。
+        """
+        try:
+            import quant_metrics as _qm
+            v = _qm.hurst_dfa(s)
+            return 0.5 if v is None else v
+        except Exception:
             return 0.5
-        pts = []
-        for lag in lags:
-            vals = []
-            for start in range(0, len(lp) - lag + 1, lag):
-                seg = lp[start:start+lag]
-                m = sum(seg) / len(seg); cum = 0.0; mx = -1e18; mn = 1e18
-                for v in seg:
-                    cum += v - m; mx = max(mx, cum); mn = min(mn, cum)
-                sd = math.sqrt(sum((x - m) ** 2 for x in seg) / len(seg))
-                if sd > 0:
-                    vals.append((mx - mn) / sd)
-            if vals:
-                pts.append((math.log(lag), math.log(sum(vals) / len(vals))))
-        if len(pts) < 2:
-            return 0.5
-        n2 = len(pts); mx2 = sum(p[0] for p in pts) / n2; my2 = sum(p[1] for p in pts) / n2
-        den = sum((p[0] - mx2) ** 2 for p in pts)
-        return (sum((p[0] - mx2) * (p[1] - my2) for p in pts) / den) if den else 0.5
+
     h = hurst(cs)
     # 偏离度 Z：以「收盘价」相对 60 日窗口的均值/标准差计算（修正 v2.4.2 误用收益均值+标准误的 bug）
     w = min(60, len(cs))
@@ -549,7 +609,7 @@ DISCIPLINE6 = [
 
 # ===================== ECharts 加载策略: 优先本地内嵌 =====================
 _SKILL_ASSETS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets"))
-_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>'
+_ECHARTS_CDN = '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>'
 _ECHARTS_TAG = _ECHARTS_CDN
 for _ep in (os.path.join(OUT, "echarts.min.js"), os.path.join(_SKILL_ASSETS, "echarts.min.js")):
     if os.path.exists(_ep):
@@ -564,11 +624,11 @@ if _ECHARTS_TAG is _ECHARTS_CDN:
 
 # ===================== HTML 头部 =====================
 html = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
-<title>决策增强版 v2.8.1 · 今日行情分析 · 10标的 · kingforex-skill</title>
+<title>决策增强版 v2.9.0 · 今日行情分析 · 10标的 · kingforex-skill</title>
 """ + _ECHARTS_TAG + """
 """ + style_block + """</head><body><div class="container">
 <div class="header">
-<h1>📊 今日行情分析 · 决策增强版 v2.8.1</h1>
+<h1>📊 今日行情分析 · 决策增强版 v2.9.0</h1>
 <div class="meta">基准时间: <b>""" + NOW + """</b> ｜ 标的: 金/银/美元/欧元/英镑/日元/WTI原油 + 利差最大货币对(AUDJPY) + 韩元(USDKRW)<br>
 ⏱ 数据截至: <b>行情报价 金十实时 2026-09-18 13:50 ｜ 日K Twelve Data 末根 2026-09-18 ｜ FRED 利率观测 09-18/17 ｜ 财经日历金十 09-18 13:50 ｜ CFTC COT 近期当周</b>（各节首行附分项截至时间, 全量溯源见十八节）<br>
 结构: 决策总览 → 交易计划 → 分析论证(快照/评分/宏观/数据/跨市场/K线/量化) → 决策工具(情景/凯利/相关性/风险/止损) → 综合判定 → 日志/回测 → 校验 → 纪律<br>
@@ -1125,7 +1185,7 @@ html += (sec01 + sec02 + sec03 + sec04 + _SEC04B + sec05 + sec06
          + sec07 + sec08 + sec09 + sec10 + sec11 + sec12 + sec13 + sec14
          + sec15 + sec17 + sec18 + sec16 + _SEC20 + sec19)
 
-html += """<div class="footer">kingforex-skill v2.8.1 决策增强版｜ 基准 """ + NOW + """ ｜ 数据溯源见⑱ ｜ 本分析仅供决策参考, 不代客下单, 不自动交易</div>
+html += """<div class="footer">kingforex-skill v2.9.0 决策增强版｜ 基准 """ + NOW + """ ｜ 数据溯源见⑱ ｜ 本分析仅供决策参考, 不代客下单, 不自动交易</div>
 </div>
 <script>
 """ + "\n".join(charts_js) + """
@@ -1185,12 +1245,19 @@ print("[CHG 2] ⑭·补 止损止盈评估节注入:", "OK" if _n2 else "FAIL",
       "| 判定: %s | initRR=%.2f restRR=%.2f | 浮盈 %+.1f pip = $%.2f"
       % (_sltp["verdict"], _sltp["init_rr"], _sltp["rest_rr"], _sltp["pl_pips"], _sltp["pl_usd"]))
 
-# ── 时间节点 + 实时价 标签统一刷新(技能铁律: 时间节点 = 报告输出时) ──
+# ── 时间节点 + 实时价 标签统一刷新 ──
+# 修复(2026-09-28): 原实现把「数据截至」类文字统统一成 NOW(生成时刻), 而数据层是
+# 2026-09-18 快照 → 产出"页头今天、正文 09-18"的混杂报告(违反自身鲜度铁律)。
+# 现改为: 数据基准日一律取 DATA_AS_OF(日K末根), 取数时刻才用 NOW/NOW_HM;
+# 原文件中重复出现的第二份 _html_subs 同步块(等价冗余)已删除。
 _html_subs = [
-    ("2026-09-18 13:50 GMT+8", NOW),
-    ("2026-09-18 13:50", NOW),
+    ("2026-09-18 13:50 GMT+8", "%s %s GMT+8（日K末根 %s · 报告生成 %s）"
+                               % (DATA_AS_OF, NOW_HM, DATA_AS_OF, NOW)),
+    ("2026-09-18 13:50", "%s %s（日K末根）" % (DATA_AS_OF, NOW_HM)),
+    ("末根 2026-09-18", "末根 " + DATA_AS_OF),
+    ("至 2026-09-18", "至 " + DATA_AS_OF),
     ("取数 13:50 GMT+8", "取数 " + NOW_HM + " GMT+8"),
-    ("09-18 13:50", "09-18 " + NOW_HM),
+    ("09-18 13:50", "%s %s" % (DATA_AS_OF[5:], NOW_HM)),
     ("11:55-13:50", "11:55-" + NOW_HM),
     ("111.97327", "%.5f" % POS_CUR),
     ("111.97", "%.2f" % POS_CUR),
@@ -1213,42 +1280,45 @@ _html_subs = [
 ]
 for _a, _b in _html_subs:
     html = html.replace(_a, _b)
-# ── 时间节点 + 实时价 标签统一刷新(技能铁律: 时间节点 = 报告输出时) ──
-_html_subs = [
-    ("2026-09-18 13:50 GMT+8", NOW),
-    ("2026-09-18 13:50", NOW),
-    ("取数 13:50 GMT+8", "取数 " + NOW_HM + " GMT+8"),
-    ("09-18 13:50", "09-18 " + NOW_HM),
-    ("11:55-13:50", "11:55-" + NOW_HM),
-    ("111.97327", "%.5f" % POS_CUR),
-    ("111.97", "%.2f" % POS_CUR),
-    ("259.97", "%.2f" % _pips),
-    ("33.09", "%.2f" % POS_PNL),
-    ("607.09", "%.2f" % ACC_EQUITY),
-    ("52.7", "%.1f" % _to_sl),
-    ("6.70", "%.2f" % RISK_REST),
-    ("6.71", "%.2f" % RISK_REST),
-    ("1.10%", "%.2f%%" % RISK_REST_PCT),
-    ("4.16", "%.2f" % (_to_tp/_to_sl)),
-    ("219.2", "%.1f" % _to_tp),
-    ("157.118", "%.3f" % USDJPY_RATE),
-    ("0.12729", "%.5f" % _pip_val),
-    ("##RISK_BADGE##", _RISK_BADGE),
-    ("##RISK_INLINE##", _RISK_INLINE),
-    ("##RISK_COMP##", _RISK_COMP),
-    ("##RISK_MD##", _RISK_MD),
-    ("##RISK_CLASS##", "red" if _RISK_OVER else "green"),
-]
-for _a, _b in _html_subs:
-    html = html.replace(_a, _b)
-path = os.path.join(OUT, "今日行情分析_决策增强版_v2.8.1_" + NOW_DATE + ".html")
+
+
+# ── 数据鲜度门禁(2026-09-28 新增) ──
+# 检查「数据截至 / 取数 / 末根」三类文字行中是否残留与数据基准日不符的日期。
+# 这类行是报告对外的数据溯源口径, 一旦与 DATA_AS_OF 不符即说明数据层未更新,
+# 直接拒绝写出(除非显式 KINGFOREX_ALLOW_STALE=1)。
+def freshness_gate(text, label):
+    bad = []
+    for line in text.splitlines():
+        if not any(k in line for k in ("数据截至", "取数", "末根")):
+            continue
+        for d in _re.findall(r"20\d\d-\d\d-\d\d", line):
+            if d not in (DATA_AS_OF, NOW_DATE):
+                bad.append((d, line.strip()[:96]))
+        for d in _re.findall(r"(?<![\d-])(\d\d-\d\d)(?![\d-])", line):
+            if d not in (DATA_AS_OF[5:], NOW_DATE[5:]):
+                bad.append((d, line.strip()[:96]))
+    if bad and not _ALLOW_STALE:
+        raise SystemExit(
+            "[数据鲜度门禁 · 拒绝写出 %s]\n"
+            "  数据基准日(日K末根) = %s ; 今日 = %s\n"
+            "  以下溯源行的日期与基准日不符(共 %d 处, 列前 8):\n%s\n"
+            "  ⇒ 说明数据层仍是旧快照。请先用 kline_fetch.py 更新 K 线, 或直接修改本生成器数据层(QUOTES/RATES/SCORES/STOPS 等块)后重跑;\n"
+            "     若确认接受该陈旧度, 显式设置 KINGFOREX_ALLOW_STALE=1 或加 --allow-stale。"
+            % (label, DATA_AS_OF, NOW_DATE, len(bad),
+               "\n".join("      [%s] %s" % (d, l) for d, l in bad[:8])))
+    return len(bad)
+
+
+print("[鲜度门禁] 『数据截至/取数/末根』中与基准日不符的日期字面量: %d 处%s"
+      % (freshness_gate(html, "HTML"), "(已用 --allow-stale 放行)" if _ALLOW_STALE else ""))
+path = os.path.join(OUT, "今日行情分析_决策增强版_v2.9.0_" + NOW_DATE + ".html")
 open(path, "w", encoding="utf-8").write(html)
 _cdn_after = html.count("cdn.jsdelivr.net")
 print("HTML written:", path, len(html), "bytes | charts:", len(charts_js), "| CDN refs:", _cdn_after)
 
 # ===================== MD 双版本 (19节新顺序 · 10标的) =====================
 md = []
-md.append("# 今日行情分析 · 决策增强版 v2.8.1")
+md.append("# 今日行情分析 · 决策增强版 v2.9.0")
 md.append("> 基准时间: **" + NOW + "** ｜ kingforex-skill ｜ 10 标的（含韩元 USDKRW 正式纳入框架）｜ 数据溯源见第十六节")
 md.append("")
 md.append("## 一、今日决策总览")
@@ -1438,22 +1508,21 @@ for cat, items in DISCIPLINE6:
     md.append("- **" + cat + "**: " + "; ".join(items))
 md.append("")
 md.append("---")
-md.append("kingforex-skill v2.8.1 决策增强版｜ 仅供决策参考, 不代客下单, 不自动交易")
-md_path = os.path.join(OUT, "今日行情分析_决策增强版_v2.8.1_" + NOW_DATE + ".md")
+md.append("kingforex-skill v2.9.0 决策增强版｜ 仅供决策参考, 不代客下单, 不自动交易")
+md_path = os.path.join(OUT, "今日行情分析_决策增强版_v2.9.0_" + NOW_DATE + ".md")
+# 修复(2026-09-28): 原为两份完全相同的 _md_subs 循环(等价冗余), 已合并为一份。
 _md_subs = _html_subs + []
 for i in range(len(md)):
     _l = md[i]
     for _a, _b in _md_subs:
         _l = _l.replace(_a, _b)
     md[i] = _l
-_md_subs = _html_subs + []
-for i in range(len(md)):
-    _l = md[i]
-    for _a, _b in _md_subs:
-        _l = _l.replace(_a, _b)
-    md[i] = _l
+print("[鲜度门禁] MD 中『数据截至/取数/末根』与基准日不符的日期字面量: %d 处%s"
+      % (freshness_gate("\n".join(md), "MD"), "(已用 --allow-stale 放行)" if _ALLOW_STALE else ""))
 open(md_path, "w", encoding="utf-8").write("\n".join(md))
 print("MD written:", md_path, len(md), "lines")
+print("[数据溯源] 数据基准日(日K末根) = %s | 报告生成时刻 = %s | 数据滞后 %d 天"
+      % (DATA_AS_OF, NOW, _DATA_LAG))
 
 # ===================== 独立 Excel 复盘模板 =====================
 try:
@@ -1519,6 +1588,6 @@ for i in range(4, 10):
     for c in range(1, len(cols4)+1): ws4.cell(row=i, column=c).border = border
 for i, w in enumerate([8,9,8,8,8,11,13,13,12,28,28], 1):
     ws4.column_dimensions[chr(64+i)].width = w
-xl_path = os.path.join(OUT, "交易复盘模板_v2.8.1.xlsx")
+xl_path = os.path.join(OUT, "交易复盘模板_v2.9.0.xlsx")
 wb.save(xl_path)
 print("XLSX written:", xl_path)

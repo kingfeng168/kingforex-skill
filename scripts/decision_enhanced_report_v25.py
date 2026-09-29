@@ -20,11 +20,44 @@ import math
 import argparse
 import datetime as _dt
 
+# 中文 Windows(cp936 控制台)下,print 含 ⑪/⚠ 等字符会抛 UnicodeEncodeError 并中断
+# (2026-09-28 修复)。改为不可编码字符降级替换,不改变控制台原生编码,中文照常显示。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(BASE)
 ASSETS = os.path.join(SKILL, "assets")
 TEMPLATE = os.path.join(ASSETS, "decision_enhanced_template.html")
 ECHARTS = os.path.join(ASSETS, "echarts.min.js")
+
+# ---- 统一事实来源: calc_engine.CONTRACTS(合约单位 + pip 刻度) ----
+# 修复(2026-09-28): 本文件原自带一份 pip 口径(黄金/白银=0.1,且黄金每 pip 用
+# `100.0 * 0.1 * 10.0` 硬凑出 $100),与 calc_engine 的 pip=1.0(黄金)/0.01(白银)相差 10 倍,
+# 导致 ⑭·补 节的 pip 距离、ATR sanity、SL/TP 距离在黄金/白银上口径不一致。
+# v2.5.2 / v2.5.4 / v2.5.6 生成器均 import 本模块,故此处统一即全链路统一。
+if BASE not in sys.path:
+    sys.path.insert(0, BASE)
+try:
+    import calc_engine as _CE
+    _CONTRACTS = _CE.CONTRACTS
+except Exception:                                    # pragma: no cover
+    _CE = None
+    _CONTRACTS = {}
+
+_ALIAS = {"XAU": "XAUUSD", "GOLD": "XAUUSD", "XAG": "XAGUSD", "SILVER": "XAGUSD",
+          "WTI": "USOIL", "CL": "USOIL", "OIL": "USOIL", "CRUDE": "USOIL"}
+
+
+def _contract(symbol):
+    """取 calc_engine 合约规格(支持 XAU/XAG/WTI 等别名);未登记返回 None。"""
+    if not symbol:
+        return None
+    s = symbol.upper().replace("/", "").replace("_", "").replace("-", "")
+    return _CONTRACTS.get(s) or _CONTRACTS.get(_ALIAS.get(s, ""))
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -32,6 +65,10 @@ ECHARTS = os.path.join(ASSETS, "echarts.min.js")
 # ══════════════════════════════════════════════════════════════════
 
 def pip_scale(symbol):
+    """1 pip 的价格增量(优先 calc_engine 合约表 = 唯一事实来源)。"""
+    c = _contract(symbol)
+    if c:
+        return c["pip"]
     s = symbol.upper()
     if "JPY" in s:
         return 0.01
@@ -67,34 +104,18 @@ def quant_block(sym, klines):
     skew = sum((x - mu) ** 3 for x in rs) / n / (sd ** 3) if sd else 0
 
     def _hurst(s):
-        lp = [math.log(x) for x in s if x > 0]
-        lags = [l for l in (4, 8, 16, 32) if l <= len(lp) // 2]
-        if len(lags) < 2:
+        """Hurst 统一走 quant_metrics.hurst_dfa（唯一事实来源）。
+
+        修复(2026-09-28): 原为本地 R/S 实现(仅 4/8/16/32 四个 lag、非重叠、未修正),
+        与 quant_metrics 的口径不一致且系统性高估。现委托 DFA-1(随机游走实测均值 0.505)。
+        """
+        try:
+            import quant_metrics as _qm
+            v = _qm.hurst_dfa(s)
+            return 0.5 if v is None else v
+        except Exception:
+            # 兜底: 模块不可用时退化为 0.5(不判趋势), 而不是给出有偏的高值
             return 0.5
-        pts = []
-        for lag in lags:
-            vals = []
-            for start in range(0, len(lp) - lag + 1, lag):
-                seg = lp[start:start + lag]
-                m = sum(seg) / len(seg)
-                cum = 0.0
-                mx = mn = seg[0] - m
-                for v in seg:
-                    cum += v - m
-                    mx = max(mx, cum)
-                    mn = min(mn, cum)
-                std = math.sqrt(sum((x - m) ** 2 for x in seg) / len(seg))
-                if std > 0:
-                    vals.append((mx - mn) / std)
-            if vals:
-                pts.append((math.log(lag), math.log(sum(vals) / len(vals))))
-        if len(pts) < 2:
-            return 0.5
-        nn = len(pts)
-        mxn = sum(p[0] for p in pts) / nn
-        myn = sum(p[1] for p in pts) / nn
-        den = sum((p[0] - mxn) ** 2 for p in pts)
-        return (sum((p[0] - mxn) * (p[1] - myn) for p in pts) / den) if den else 0.5
 
     h = _hurst(cs)
     w = min(60, len(cs))
@@ -128,7 +149,16 @@ def radar_option(name, vals, color, area):
 
 
 def pip_value_account_per_stdlot(symbol, usdjpy):
-    """标准手每 pip 的账户币价值（USD 计价账户）"""
+    """标准手每 pip 的账户币价值（USD 计价账户）。
+
+    修复(2026-09-28): 原实现对黄金用 `100.0 * 0.1 * 10.0` 硬凑 $100(隐含 pip=0.1 且
+    1000 盎司/手),对白银写死 0.01 而其 pip_scale 返回 0.1——两处均与 calc_engine 不一致。
+    现统一由 calc_engine.CONTRACTS 推导(1 标准手 = 100 × 每 0.01 手单位数)。
+    """
+    c = _contract(symbol)
+    if c and not c.get("index"):
+        pv = 100.0 * c["lot_unit"] * c["pip"]
+        return (pv / usdjpy) if c.get("jpy") else pv
     s = symbol.upper()
     pip = pip_scale(s)
     if s.endswith("JPY"):
@@ -208,14 +238,18 @@ def evaluate_sl_tp(direction, entry, sl, tp, current, symbol,
         flags.append(("severe" if init_rr < 1.0 else "warn", "BAD_INIT_RR",
                       "初始 R:R = %.2f · 低于最低 1.5 门槛" % init_rr))
 
-    # ── 判定 4：单笔风险超限 ──
-    if risk_pct > 2.0:
+    # ── 判定 4：单笔风险超限（硬上限 = calc_engine.RISK_HARD_CAP = 1%）──
+    # 修复(2026-09-28): 原 severe 阈值写死 2.0，比框架铁律(1%)宽一倍；现与
+    # calc_engine / sl_tp_evaluate 同口径：>硬上限 = severe，>硬上限一半 = warn(小账户保守口径)。
+    _risk_cap = getattr(_CE, "RISK_HARD_CAP", 1.0) if _CE else 1.0
+    if risk_pct > _risk_cap:
         flags.append(("severe", "OVER_RISK",
-                      "建仓单笔风险 $%.2f = %.2f%% · 超 1%% 硬上限的 %.1f 倍"
-                      % (risk_usd, risk_pct, risk_pct)))
-    elif risk_pct > 1.0:
+                      "建仓单笔风险 $%.2f = %.2f%% · 超 %.1f%% 硬上限"
+                      % (risk_usd, risk_pct, _risk_cap)))
+    elif risk_pct > _risk_cap / 2.0:
         flags.append(("warn", "OVER_1PCT",
-                      "建仓单笔风险 $%.2f = %.2f%% · 超 1%% 硬上限" % (risk_usd, risk_pct)))
+                      "建仓单笔风险 $%.2f = %.2f%% · 已越过小账户保守口径 %.1f%%（硬上限 %.1f%%）"
+                      % (risk_usd, risk_pct, _risk_cap / 2.0, _risk_cap)))
 
     # ── 判定 5：ATR 宽度 ──
     if atr_ratio is not None:

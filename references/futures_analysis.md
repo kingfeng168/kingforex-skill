@@ -1,7 +1,7 @@
 # 期货分析:期现结构(基差)与期货价差
 
 > 配套脚本:`scripts/futures_analysis.py`(纯标准库)。本文件讲**方法学与公式**,脚本负责**确定性计算**。
-> 数据源:iTick(期货报价/K线)、goldprice.dev(现货金)、OilPriceAPI(WTI/Brent 原油)。
+> 数据源:goldprice.dev / gold-api(现货金)、OilPriceAPI(WTI/Brent 原油)。⚠️ iTick 已于 v2.4.6 移除,期货端无免费源,须 `basis --fut` 手工传入。
 
 ---
 
@@ -79,12 +79,12 @@ python scripts/futures_analysis.py pull --kind oil
 
 | 用途 | 数据源 | 脚本 | 说明 |
 |---|---|---|---|
-| 期货报价(黄金 GC / 原油 CL / 股指) | iTick | `itick_fetch.py quote --asset future --region US --code GC` | 免费层 `api-free.itick.org`,限频 5 次/分钟 |
-| 期货/现货 K 线 | iTick | `itick_fetch.py kline --asset future ...` | kType: 1m/5m/15m/30m/1h/2h/4h/1d/1w/1mo |
-| 现货金基准 | goldprice.dev | `goldprice_fetch.py` | `XAU-USD-SPOT`;本构建环境被 Cloudflare 拦截,**本机正常** |
+| 期货报价(黄金 GC / 原油 CL / 股指) | **无免费源** | `basis --fut 合约:价:到期天数` | 2026-09-28:iTick 已于 v2.4.6 移除,脚本不存在;合约价需**手工传入** |
+| 期货/现货 K 线 | Twelve Data | `kline_fetch.py` | 需自备 key;期货合约代码覆盖有限,缺失时用手工 CSV |
+| 现货金基准 | goldprice.dev / gold-api | `goldprice_fetch.py` / `live_market_fetch.py --preset gold` | 2026-09-28 实测本机**均可直连**(此前"被 Cloudflare 拦截"的说法已过时) |
 | WTI / Brent 实时 + 历史 | OilPriceAPI | `oilprice_fetch.py` | `by_code=WTI_USD`/`BRENT_CRUDE_USD`;`Authorization: Token` |
 
-> 完整端点、认证头、限流与降级说明见 `data_sources.md` 第 7.12–7.14 节。
+> 完整端点、认证头、限流与降级说明见 `data_sources.md` 第 7.12–7.14 节(§7.12 已标注 iTick 移除)。
 
 ---
 

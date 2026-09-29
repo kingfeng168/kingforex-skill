@@ -16,7 +16,7 @@ sl_tp_evaluate.py — 止损 / 止盈合理性评估(持仓管理与离场纪律
   - 初始 R:R = |入场−TP| / |入场−SL|
   - 剩余 R:R = |当前−TP| / |当前−SL|(持仓已盈利时这才是真正要盯的 R:R)
   - 浮盈(open P&L, pips 与账户货币)
-  - 单笔美元风险(对比 2% 铁律): 需 --equity + --lot
+  - 单笔美元风险(对比 1% 铁律): 需 --equity + --lot
   - SL 方向校验: SELL 的止损应在入场上方(防亏),BUY 在下方;盈利后 SL 应"向盈利侧移动"而非反向
   - ATR 宽度 sanity(可选 --atr): SL 距离 < 0.5×ATR 警惕扫损, > 3×ATR 警惕超仓
 
@@ -45,11 +45,47 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+# 中文 Windows(cp936 控制台)下,输出含 ⚠/✗ 等字符会抛 UnicodeEncodeError 并中断整个脚本
+# (2026-09-28 修复; 与 subprocess 缺 encoding 同源)。改为不可编码字符降级替换,
+# 不改变控制台原生编码,中文照常显示。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ---- 统一事实来源: calc_engine.CONTRACTS(合约单位 + pip 刻度) ----
+# 修复(2026-09-28): 本文件原先自带一份 pip 刻度(黄金/白银=0.1)与一份 pip 美元价值
+# (把黄金按 100000 盎司/标准手计),与 calc_engine 相差 10–1000 倍:
+#   黄金 0.01 手 / 止损 $50 曾被判「$50000 = 账户 5000% 风险」(真实 $50 = 5%)。
+# 现统一委托 calc_engine,缺失时回落旧口径。
+try:
+    import calc_engine as _CE
+    _CONTRACTS = _CE.CONTRACTS
+except Exception:                                    # pragma: no cover
+    _CE = None
+    _CONTRACTS = {}
+
+_ALIAS = {"XAU": "XAUUSD", "GOLD": "XAUUSD", "XAG": "XAGUSD", "SILVER": "XAGUSD",
+          "WTI": "USOIL", "CL": "USOIL", "OIL": "USOIL", "CRUDE": "USOIL"}
+
+
+def _contract(symbol):
+    """取 calc_engine 合约规格(支持 XAU/XAG/WTI 等别名);未登记返回 None。"""
+    if not symbol:
+        return None
+    s = symbol.upper().replace("/", "").replace("_", "").replace("-", "")
+    return _CONTRACTS.get(s) or _CONTRACTS.get(_ALIAS.get(s, ""))
 
 
 # ---------------- pip / 价格工具 ----------------
 def pip_scale(symbol):
+    """1 pip 的价格增量(优先 calc_engine 合约表 = 唯一事实来源)。"""
+    c = _contract(symbol)
+    if c:
+        return c["pip"]
     if not symbol:
         return None
     s = symbol.upper()
@@ -83,7 +119,9 @@ def _run_fetch(args):
         r = subprocess.run(
             [sys.executable, os.path.join(SCRIPTS_DIR, "allratestoday_fetch.py")] + args,
             capture_output=True, text=True, timeout=40,
-        )
+            encoding="utf-8", errors="replace",   # 修复(2026-09-28): 缺 encoding 时中文
+        )                                          # Windows 落 GBK → UnicodeDecodeError,
+                                                   # 使自动取价静默失败、剩余 R:R 恒为 None
         if r.returncode != 0:
             return None
         return r.stdout
@@ -124,10 +162,23 @@ def fetch_usdjpy():
 
 
 def pip_value_account_per_stdlot(symbol, account_ccy, usdjpy):
-    """每标准手(100k)1 pip 对应的账户货币价值(仅完整支持账户=USD 或 quote=账户)。"""
+    """每标准手 1 pip 对应的账户货币价值。
+
+    修复(2026-09-28): 原实现对 XAU/XAG 走 100000 × pip(隐含 10 万盎司/标准手),
+    黄金每 pip 报 $10000/手(真实 100 盎司/手 → $100/手),美元风险与风险%被放大 1000 倍。
+    现由 calc_engine.CONTRACTS 推导:1 标准手 = 100 × 每 0.01 手单位数。
+    """
+    acc = (account_ccy or "USD").upper()
+    c = _contract(symbol)
+    if c and acc == "USD" and not c.get("index"):
+        pv = 100.0 * c["lot_unit"] * c["pip"]        # 1 标准手每 pip 的报价币金额
+        if c.get("jpy"):
+            return (pv / usdjpy) if usdjpy else None
+        return pv
+    # ---- calc_engine 未登记 / 非 USD 账户: 回落旧口径 ----
     pip = pip_scale(symbol) or 0.0001
     quote_units = 100000.0 * pip  # 每标准手 1 pip 的报价币单位数
-    if account_ccy.upper() == "USD":
+    if acc == "USD":
         if symbol and "JPY" in symbol.upper():
             if not usdjpy:
                 return None
@@ -137,7 +188,7 @@ def pip_value_account_per_stdlot(symbol, account_ccy, usdjpy):
         # 其它: 假定报价币为 USD(如 EURUSD)
         return quote_units
     # 非 USD 账户且报价币 != 账户币: 暂不支持精确换算
-    if symbol and symbol[3:].upper() == account_ccy.upper():
+    if symbol and symbol[3:].upper() == acc:
         return quote_units
     return None
 
@@ -261,7 +312,8 @@ def evaluate(direction, entry, sl, tp, current, symbol, equity, lot, account_ccy
             flags.append(("warn", "SL_WIDE",
                           "SL 距离 %.1f pip > 3×ATR(%.1f): 单笔风险偏大,核对仓位是否超重。" % (init_risk, 3 * atr_pips)))
 
-    # 2% 铁律(美元风险)
+    # 1% 铁律(美元风险) —— calc_engine.RISK_HARD_CAP = 1.0(小账户优先 0.5%)
+    # 修复(2026-09-28): 原阈值 2% 与框架铁律(RISK_HARD_CAP=1.0)相差一倍。
     if equity and lot:
         usdjpy = fetch_usdjpy()
         pv = pip_value_account_per_stdlot(symbol, account_ccy, usdjpy)
@@ -269,12 +321,16 @@ def evaluate(direction, entry, sl, tp, current, symbol, equity, lot, account_ccy
             dollar_risk = pv * lot * init_risk
             res["init_dollar_risk"] = round(dollar_risk, 2)
             res["risk_pct_equity"] = round(dollar_risk / equity * 100, 2)
-            if dollar_risk / equity * 100 > 2.0:
+            _risk_cap = getattr(_CE, "RISK_HARD_CAP", 1.0) if _CE else 1.0
+            if dollar_risk / equity * 100 > _risk_cap:
                 flags.append(("severe", "OVER_RISK",
-                              "单笔美元风险 $%.2f = 账户 %.2f%% > 2%% 铁律。" % (dollar_risk, dollar_risk / equity * 100)))
-            elif dollar_risk / equity * 100 > 1.0:
+                              "单笔美元风险 $%.2f = 账户 %.2f%% > %.1f%% 铁律。" % (
+                                  dollar_risk, dollar_risk / equity * 100, _risk_cap)))
+            elif dollar_risk / equity * 100 > _risk_cap / 2.0:
                 flags.append(("warn", "HIGH_RISK",
-                              "单笔美元风险 $%.2f = 账户 %.2f%% (在 1%%–2%% 区间,需确认小账户取下限)。" % (dollar_risk, dollar_risk / equity * 100)))
+                              "单笔美元风险 $%.2f = 账户 %.2f%% (在 %.1f%%–%.1f%% 区间,小账户取下限)。" % (
+                                  dollar_risk, dollar_risk / equity * 100,
+                                  _risk_cap / 2.0, _risk_cap)))
 
     # 综合判定
     flags = [[l, c, t] for l, c, t in flags]

@@ -39,7 +39,9 @@ PRESETS = {
     "fx_ref": "Frankfurter ECB 参考汇率",
     "fx_all": "exchangerate-api 全货币",
     "gold": "gold-api.com 现货黄金 XAU",
-    "ust_yield": "US Treasury 美债收益率/汇率",
+    # 2026-09-28 口径更正: 旧 ust_yield 实际调的是财政部"记账汇率"端点, 不含任何收益率。
+    "ust_yield": "美国财政部 存量国债平均利率(v2/avg_interest_rates, 月度, 非市场收益率)",
+    "ust_fx": "美国财政部 记账汇率(v1/rates_of_exchange, 非收益率)",
     "sina": "新浪 USDCNY + 伦敦金 真实时",
     "all": "以上全部聚合",
 }
@@ -86,7 +88,7 @@ def _emit(rows, out, as_json):
 def p_fx_ref(args):
     frm = args.fr or "USD"
     to = args.to or "CNY,EUR,JPY"
-    url = "https://api.frankfurter.app/latest?from=%s&to=%s" % (frm, to)
+    url = "https://api.frankfurter.dev/v1/latest?base=%s&symbols=%s" % (frm, to)
     ok, txt = _http_get(url)
     if not ok:
         return [{"error": txt}]
@@ -131,6 +133,38 @@ def p_gold(args):
 
 
 def p_ust_yield(args):
+    """美国财政部 存量国债平均利率(月度)。
+
+    2026-09-28 修复: 本预设原名"US Treasury 美债收益率", 但实际请求的是
+    /v1/accounting/od/rates_of_exchange(外币折算**记账汇率**, 完全不含收益率),
+    属口径错标。现改用财政部官方平均利率端点 /v2/accounting/od/avg_interest_rates
+    (存量可流通国债的平均票息, 月度发布)。
+    ⚠️ 注意: 这仍**不是市场收益率曲线**; 10Y/2s10s/实际利率(TIPS)等请用
+    `scripts/fred_fetch.py`(DGS10 / T10Y2Y / DFII10, 需自备 FRED key)。
+    """
+    url = ("https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/"
+           "accounting/od/avg_interest_rates?sort=-record_date&page[size]=%d"
+           % (args.limit or 20))
+    ok, txt = _http_get(url)
+    if not ok:
+        return [{"error": txt}]
+    try:
+        d = json.loads(txt)
+    except Exception as e:  # noqa: BLE001
+        return [{"error": "JSON解析失败: %s" % e}]
+    rows = []
+    for it in (d.get("data") or []):
+        rows.append({"source": "US Treasury avg_interest_rates",
+                     "record_date": it.get("record_date"),
+                     "security_type": it.get("security_type_desc"),
+                     "security": it.get("security_desc"),
+                     "avg_interest_rate_amt": it.get("avg_interest_rate_amt"),
+                     "note": "存量国债平均利率(非市场收益率); 市场收益率见 fred_fetch.py DGS10"})
+    return rows
+
+
+def p_ust_fx(args):
+    """美国财政部 外币折算记账汇率(非收益率) —— 原 ust_yield 的真实内容。"""
     url = ("https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/"
            "accounting/od/rates_of_exchange?filter=record_date:gte:2025-01-01"
            "&sort=-record_date&page[size]=%d" % (args.limit or 20))
@@ -143,7 +177,8 @@ def p_ust_yield(args):
         return [{"error": "JSON解析失败: %s" % e}]
     rows = []
     for it in (d.get("data") or []):
-        rows.append({"source": "US Treasury", "record_date": it.get("record_date"),
+        rows.append({"source": "US Treasury rates_of_exchange(记账汇率)",
+                     "record_date": it.get("record_date"),
                      "country": it.get("country"), "currency": it.get("currency"),
                      "exchange_rate": it.get("exchange_rate")})
     return rows
@@ -181,6 +216,7 @@ DISPATCH = {
     "fx_all": p_fx_all,
     "gold": p_gold,
     "ust_yield": p_ust_yield,
+    "ust_fx": p_ust_fx,
     "sina": p_sina,
 }
 
@@ -200,7 +236,7 @@ def main():
 
     if args.preset == "all":
         rows = []
-        for key in ["fx_ref", "fx_all", "gold", "ust_yield", "sina"]:
+        for key in ["fx_ref", "fx_all", "gold", "ust_yield", "ust_fx", "sina"]:
             rows.extend(DISPATCH[key](args))
     else:
         rows = DISPATCH[args.preset](args)

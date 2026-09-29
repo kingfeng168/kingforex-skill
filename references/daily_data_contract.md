@@ -1,4 +1,8 @@
-# daily_data.json 数据契约（报告生成器参数化驱动）
+# 日数据契约（**legacy · 2026-09-28 标注**）
+
+> ⚠️ 本文档描述 v2.4 时代的日数据 JSON 契约，其配套脚本（`build_daily_json.py` / `transform_to_param.py` / `gen_report_param.py`）已于 2026-09-28 归档至 `scripts/_archive/legacy_dev_tools/`，**不再随包分发**。
+> 当前做法见 `SKILL.md`「计算脚本与权威取数」与生成器数据层说明；本文件仅作历史参考。
+
 
 > 配套 `scripts/gen_report_param.py` —— 今日行情分析·决策增强版 的**参数化入口**。
 > 本文件定义 `daily_data.json` 的全部字段。每日只需填一份 `daily_data_<YYYY-MM-DD>.json`，

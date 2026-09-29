@@ -1,5 +1,162 @@
 # kingforex-skill 更新日志
 
+## v2.9.0 — 一致性修复版(数值口径 / 崩溃 / 数据源 / 量化 / 开仓闸门) · 2026-09-28
+
+**⚠️ 本次为纯缺陷修复，不改报告格式**——冻结模板、23 节结构、15 图与 CSS 全部未动。
+修复动因:第三方只读审计(实跑 60+ 次脚本、39 个端点实测、供应链哈希交叉验证)发现
+文档与代码分裂成两套事实来源、约 1/3 "权威数据源"不可用或路径臆造、旗舰入口在中文
+Windows 上必然崩溃、量化"第四维"因估计量偏误恒为通过、组合层缺开仓前闸门。
+
+### 修复
+
+1. **单笔风险统一到 1%(框架铁律 `calc_engine.RISK_HARD_CAP`)**
+   - `scripts/position_report.py`: `--risk-pct` 默认值 `2.0` → `1.0`,报告纪律文案与文档示例同步。
+   - `scripts/sl_tp_evaluate.py`: OVER_RISK 判定阈值 `>2%` → `>硬上限`,并新增 `>0.5%` warn 档。
+   - `scripts/decision_enhanced_report_v25.py`: 判定 4 的 severe 阈值 `>2.0` → `>硬上限`(取引擎常量,不再写死)。
+   - 文档同步:`SKILL.md`、`references/position_report.md`、`assets/position_report_template.html`。
+2. **黄金/白银 pip 口径统一到 `calc_engine.CONTRACTS`(唯一事实来源)**
+   - 修复前:黄金 0.01 手 / 止损 $50 被报「单笔美元风险 $50,000 = 账户 5,000%」(真实 $50 = 5%),放大 **1000 倍**。
+   - `scripts/sl_tp_evaluate.py`、`scripts/decision_enhanced_report_v25.py` 的 `pip_scale()` 与
+     `pip_value_account_per_stdlot()` 改为委托 `calc_engine`(支持 XAU/XAG/WTI 等别名);
+     删除 v25 中 `100.0 * 0.1 * 10.0` 的硬凑常数。
+   - 口径现为:黄金 pip=1.0($100/手)、白银 pip=0.01($50/手)、JPY 对 0.01、其余 0.0001。
+3. **`scripts/exposure.py` 名义本金改为价格驱动(删除硬编码)**
+   - 修复前硬编码 XAU=200000 / XAG=140000 / WTI=75000(隐含金价 $2000),黄金风险金额低估约 2.1 倍。
+   - 现为 `名义本金 = 实时价 × 每标准手合约单位`;价格取 `--price SYM=VAL` >
+     免费源自动取数(gold-api 金/银、Frankfurter 外汇) > **报错**(遵守「绝不杜撰价格」铁律,不用内置假价顶替)。
+   - 新增 `--price` / `--no-fetch`;补齐此前缺失的 `audjpy`/`nzdjpy`(原对主力品种直接 `ValueError` 抛栈)。
+4. **中文 Windows(cp936)编码崩溃修复**
+   - 三类脚本在 cp936 控制台下因输出 `⚠ / ✗ / ⑪` 等字符抛 `UnicodeEncodeError` 并中断:
+     `sl_tp_evaluate.py`(原 exit=1)、`gen_decision_enhanced_v256.py`(旗舰入口,原崩在装配完成前)。
+   - 统一加 stdout/stderr `errors="replace"` 护栏(不改变控制台原生编码)。
+   - `sl_tp_evaluate.py` 的 `subprocess.run(..., text=True)` 补 `encoding="utf-8"`:
+     修复前自动取价静默失败 → `剩余 R:R` 恒为 `None`。
+
+### 第二批(同日):数据源真实性 + 隐私披露
+
+5. **IMF 源按实测重写(`scripts/imf_fetch.py`)**
+   - 端点校正为 IMF 官方路径:结构 `GET /structure/dataflow/all/*/+`(实测 200,222 个 dataflow)、
+     数据 `GET /data/dataflow/{agency}/{flow}/{version}/{key}`;旧路径 `/dataflow/IMF`、
+     `/datastructure/IMF/{flow}`、`/Data/{flow}/{key}` 实测**全部 404**,已废弃。
+   - agency/version 改为从结构清单**实时解析**(IMF 升版无需改码)。
+   - **移除不存在的预设 `IFS` / `DOT`**(实测在 222 个 dataflow 中查无此 id);现存 `cofer/bop/cpi/irfcl/weo`。
+   - **新增 0 观测检测**:实测 IMF 数据端点对所有键写法 / `AllDimensions` / SDMX-JSON Accept / 期间参数
+     一律返回「结构信封 + 0 观测」,即**当前不可供数**。脚本检测到即 **exit 3** 并给出替代源
+     (worldbank_fetch / bis_fetch / fred_fetch),`--allow-empty` 仅供排查,绝不把空信封当数据落盘。
+6. **QuantGist 加服务可用性预检(`scripts/quantgist_fetch.py`)**
+   - 实测 `api.quantgist.com` 的 `/`、`/docs`、`/v1/health`、`/v1/calendar`、`/v1/usage` **全部 502**
+     (官网 200 → API 子域后端故障),13 个预设 100% 不可用。
+   - 新增 `preflight()`:4xx 视为服务在线(交给 `fetch()` 报鉴权/套餐错),5xx/超时即提前 **exit 3**
+     并说明原因与替代源(jin10_mcp / wscn_fetch);`--force` 可跳过预检。
+7. **财政部预设口径更正(`scripts/live_market_fetch.py`)**
+   - `ust_yield` 原实现调 `v1/accounting/od/rates_of_exchange`(外币折算**记账汇率**,完全不含收益率),
+     属误标;现改用 `v2/accounting/od/avg_interest_rates`(**存量国债平均利率,月度**),
+     并在字段注明"非市场收益率,市场收益率见 fred_fetch.py DGS10"。
+   - 记账汇率另立新预设 `ust_fx`(原行为原样保留);`--preset all` 同步聚合两者。
+8. **Frankfurter 域名统一与说明更正**
+   - `live_market_fetch.py` 的 `fx_ref` 由 `api.frankfurter.app` 统一为 `api.frankfurter.dev`,
+     与 `frankfurter_fetch.py` / `data_sources.md` 一致。
+   - 更正 `frankfurter_fetch.py` 与两处文档中"旧 `.app` 域已 301 失效"的错误说法:
+     2026-09-28 实测 `.app` 与 `.dev` **均返回 200 且数据一致**。
+9. **LBMA / WGC 链接与定性更正(`scripts/wgc_lbma_fetch.py`)**
+   - LBMA 手工取数链接 `/market-data/statistics`(实测 404)→ `/prices-and-data/precious-metal-prices`(200)。
+   - WGC 子页 `/goldhub/data/gold-demand-trends`(404)改为 `/goldhub/data/gold-demand-by-country`(200)并注明。
+   - 定性更正:gold-api.com 是**第三方连续现货报价**,与 LBMA 10:30/15:00 **拍卖定盘**机制不同,
+     正文不再称"紧贴 LBMA 定盘"/"定盘代理"。
+10. **幽灵脚本引用清理(文档)**
+    - `references/data_sources.md` §7.12「iTick API」整节改写为「已移除(v2.4.6)」:
+      原文档给出 `itick_fetch.py quote/kline` 命令、`scripts/.itick_key` 等,**而该脚本早已删除**;
+      现标注失效命令并给出替代(live_market_fetch / kline_fetch / `futures_analysis.py basis --fut` 手工传价)。
+    - 同步 `references/futures_analysis.md`(数据源表 / 降级说明)、`references/position_report.md`(第 3.1 节
+      必备数据源:实时报价改注 AllRatesToday)、`references/quant_finance.md`(value 因子:IMF REER 标注暂不可用)。
+    - `data_sources.md` §7.17 与 §7.11 更正 frankfurter 域名与 goldprice.dev "被 Cloudflare 拦截"的过时说明
+      (实测本机可直连)。
+
+### 隐私与卫生(第二批)
+
+11. **`.gitignore` 补个人财务数据规则**:新增 `scripts/daily_data_*.json`、`daily_data_*.json`、
+    `*_sample.html`、`KingForex数据/` —— 此前 `daily_data_*.json` 与 `*_sample.html` 会把**真实账户权益与持仓**
+    一起提交(内容不含密钥,但属个人财务数据)。
+12. **从发布副本移除 `scripts/daily_data_20260914.json`**(28KB,含 equity 636.59 / deposit 522.0 /
+    AUDJPY SELL 0.02 持仓快照;本地安装副本保留)。⚠️ **仍需你在 GitHub 侧执行**:
+    ① `git rm --cached` 后提交,② 如需彻底清除历史可用 `git filter-repo`/BFG(历史提交中该文件仍可被检出)。
+13. **README 密钥表补披露**:新增 WSCN / QuantGist / qveris 三行,并明确写出
+    `qveris_fetch.py` 会回退读取用户级 `~/.workbuddy/mcp.json` 的 `mcpServers.qveris.headers.Authorization`
+    (仅限该条目、仅用于 qveris 请求、不外传),消除"未披露的越界读取"。
+14. **ECharts CDN 回退版本统一到 5.5.1**:`position_report.py` / `gen_decision_enhanced_v256.py` /
+    `decision_enhanced_report.py` / `gen_report_param.py`(原钉 `5.4.3`)、`kline_read.py` /
+    `mtf_confluence.py`(原为未钉版本的 `@5`)与 `assets/position_report_template.html` 全部对齐
+    本地资产版本 5.5.1(本地内嵌优先策略不变,产出 HTML 的 CDN 引用仍须为 0)。
+
+### 第三批(同日):数据新鲜度门禁 / Hurst 定稿 / 开仓前闸门 / JSON 输出
+
+15. **旗舰生成器:`gen_decision_enhanced_v256.py` 数据新鲜度门禁(消除"页头今天、正文旧日期")**
+    - **删除机器私有兜底路径**:原输出目录解析的第 3 级兜底是 `r"D:/R12/美日输出/FOREX"`(作者本机目录),
+      会在任意用户机器上"技能外静默写盘";现改为 `KINGFOREX_DATA`(须存在) > `<包根>/KingForex数据/output/<最新日期>`
+      > **报错退出**,不再回退任何技能目录之外的绝对路径;末级写死的 `2026-09-18` 日期目录一并删除。
+    - **缺 `scripts/.td_key` 时拒绝回退硬编码旧价**:原实现取价失败会静默使用 `USDJPY=157.11787`、
+      `POS_CUR=111.97327`,产出混杂报告;现直接报错退出并给出补救方式(写 key / 设 `TWELVEDATA_API_KEY` /
+      显式 `KINGFOREX_ALLOW_STALE=1` 确认离线出图)。同时新增 `TWELVEDATA_API_KEY` 环境变量支持。
+    - **数据基准日取自数据本身**:`DATA_AS_OF` = 各标的日K末根的最大日期;滞后超过
+      `KINGFOREX_MAX_LAG_DAYS`(默认 3)天即拒绝出报告。
+    - **溯源行日期改写 + 收尾门禁**:「数据截至/取数/末根」类文字统一改用 `DATA_AS_OF`,
+      并在写盘前扫描这些行 —— 只要残留与基准日不符的日期字面量(如数据层未更新时的
+      `FRED 利率观测 09-18/17`)即**拒绝写出**并逐条列出,`--allow-stale` 可显式放行。
+    - 顺带删除重复的 `_html_subs` / `_md_subs` 同步块(等价冗余)。
+    - 实测:场景 1(数据层仍旧)exit 1 并列出 15 处不符;场景 2(`ALLOW_STALE=1`)exit 0 且溯源行显示
+      真实基准日 `2026-09-28`;场景 3(缺 key)exit 1;场景 4(无输出目录)exit 1 且不再写 `D:/R12`。
+16. **Hurst 定稿:`quant_metrics.py` 改用 DFA-1 + 自助法随机游走带**
+    - 实测对照(n=200, 60 次随机游走, 理论 H=0.500):原 R/S 实现均值 **0.984**、
+      加 Anis-Lloyd 修正后仍 **0.840**、**DFA-1(smin=8, smax=n/4)均值 0.505**。
+      对真实持续性序列(AR(1) φ=0.3)DFA-1 给 0.667(正确>0.5)、R/S 给 0.836(被偏误污染)。
+      → **主估计量改为 `hurst_dfa()`**;`hurst_rs()` 保留但标注"已知偏高,仅对照"。
+    - **判定改用自助法随机游走带(5%/95%)**:`Hurst_判定` ∈ {趋势显著 / 均值回归显著 / 与随机游走不可区分},
+      不再使用固定 0.45/0.55 阈值。真实 7 标的实测:6/7 落在带内(即**不再假报趋势**),AUDJPY 显著(H=0.688, 带[0.389,0.651])。
+    - `--json` 增出 `Hurst_DFA` / `Hurst_RS_有偏` / `Hurst_随机游走带` / `Hurst_判定`;新增 `--boot N`(默认 100, 0=跳过)。
+    - **去重**:`decision_enhanced_report_v25.py` 与 `gen_decision_enhanced_v256.py` 里各自的本地 R/S 实现
+      改为委托 `quant_metrics.hurst_dfa`(单一事实来源),模块不可用时返回 0.5(不判趋势)。
+17. **`quant_metrics.py --json` 输出修复**
+    - 原实现 `out[k] = v if v is None or (isinstance(v, float) and math.isfinite(v)) else None` 会把
+      **list / str / int / bool 全部吞成 null**(导致新增的带与判定字段在 JSON 里恒为 null);
+      改为递归清洗(仅非有限 float 置 None)。
+    - JSON 改为**纯 ASCII 转义**输出,cp936 管道/GBK 控制台下的下游解析不再乱码。
+18. **`exposure.py` 新增开仓前组合闸门 `--check-new`(纪律从"写在文档"变为"可执行")**
+    - 原技能只有事后净方向计算,纪律里写着"禁止多金+多澳+多油(单一美元空头)"却**无任何开仓前拦截**。
+    - 现把待开仓与现有持仓合并后逐条判定:①单笔风险 ≤ `calc_engine.RISK_HARD_CAP` ②组合总风险 ≤ `PORTFOLIO_CAP`
+      ③净美元 β 集中度(提示 2.0 / 否决 3.0)④同向暴露笔数(提示 3 / 否决 4)⑤按上限反推的最大手数。
+      **通过 exit 0 / 否决 exit 3**,可直接作为 agent 的下单前闸门。
+    - 实测:黄金 0.01 手 / 止损 1.5% / 权益 574 → 单笔 10.83%、组合 17.82% → **exit 3 否决**;
+      GBPUSD 0.05 手 / 止损 0.5% / 权益 10000 → 单笔 0.33%、组合 0.90% → **exit 0 通过**。
+19. **版本治理**:SKILL.md frontmatter 增 `version: 2.9.0`(并移除非标准字段 `agent_created`)、
+    **description 由 1977 字符(4171 字节)精简为 293 字符**,原全量触发词迁至
+    `references/trigger_guide.md`;README 版本号、脚本/参考/资产计数(48 / 19 / 11)与快速开始同步;
+    生成器与报告产物的版本串统一为 `v2.9.0`。
+
+### 第四批(同日):脚本清理(仍在 v2.9.0,未改版本号)
+
+20. **处理 6 个"克隆后必然报 `FileNotFoundError`"的历史/开发脚本**(依赖已删除的
+    `gen_report_20260914.py`、从未随仓库分发的 `_paramtest/` 比对样本、或写死的日期目录):
+    - **修复**:`scripts/parity_check.py` 改为命令行传参(`--orig/--param`,或 `--dir` 自动取最新
+      两份 `今日行情分析*.html`),并新增「数值字面量缺失统计」;实测比对 v2.8.1 与 v2.9.0 两份真实报告,
+      输出 23 节 / 10 评分卡 / 15 个 `echarts.init` / CDN 0 —— **确认报告格式零漂移**。
+    - **归档**:`transform_to_param.py`、`build_daily_json.py`、`build_gen_daily.py`、
+      `decision_enhanced_report.py`(v2.3)、`gen_report_param.py`(v2.4)移至
+      `scripts/_archive/legacy_dev_tools/`,**不再随安装包分发**(与仓库既有的 `_archive/` 约定一致)。
+    - 文档同步:`SKILL.md` 标注归档并在每日更新流程中改为「直接改生成器数据层」;
+      `README.md` 脚本计数 48 → **36 个活跃脚本**;`references/daily_data_contract.md` 标注为 legacy;
+      `INSTALL.md` 第九节列出处理明细(包内不再有不可运行脚本)。
+    - 影响面:活跃 `scripts/` 由 40 → **36** 个,全部 `py_compile` 通过,日常流程不依赖任何归档件。
+
+### 已知遗留(未在本次范围内)
+
+- 报告**正文数据层**仍为快照式硬编码(如事件日历 09-18 条目、宏观事项文本):鲜度门禁会因此拦下未更新
+  数据层的运行——这是**有意设计**(阻止"页头今天、正文旧日期"),日常需配合 `build_gen_daily.py` 更新数据层。
+- `references/quant_finance.md` 的其余量化事实错误(小时年化系数 2190、小时 EWMA λ=0.97、IC 语义、
+  EG 协整临界值、roll yield 公式)与若干方向性事实错误(利差与 CIP/UIP 表述、铜金比命名、EIA 冬令时时点、
+  仓位公式漏合约乘数)仍待逐条更正(清单见评估说明附录 D)。
+- `assets/decision_enhanced_sample.html`(1.15MB)仍含真实账户痕迹(已加 .gitignore,但历史提交仍可检出),
+  如需彻底清除须 `git filter-repo`/BFG。
+
 ## v2.8.1 — 新增 Jev 判断/校验工具(Typesafe,API Key 已配置) · 2026-09-21
 
 触发场景:用户指令「请在技能中加入Jev:apikey_...」(提供 Jev(Typesafe 判断工具)API Key,并补充完整规格)。
