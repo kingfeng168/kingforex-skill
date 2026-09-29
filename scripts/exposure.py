@@ -90,7 +90,7 @@ def price_symbol_for(sym):
 
 
 def _http_json(url, timeout=15):
-    req = urllib.request.Request(url, headers={"User-Agent": "kingforex-skill/2.9.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "kingforex-skill/2.10.0"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
 

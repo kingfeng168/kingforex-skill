@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""今日行情分析 v2.9.0 决策增强版 生成器 (kingforex-skill) · 2026-09-21 版
+"""今日行情分析 v2.10.0 决策增强版 生成器 (kingforex-skill) · 2026-09-21 版
 (2026-09-21 用户指令: 事件静默纪律(一票否决)整族移除 —— 六·补节/仓位角度⑥/
   事件纪律横幅/纪律卡事件条目全部下线; 仓位收敛改为五角度)
 基准时间: 2026-09-18 13:50 GMT+8（数据层由 build_gen_20260916.py 注入, 渲染层继承 v2.5.2 冻结模板）
@@ -624,11 +624,11 @@ if _ECHARTS_TAG is _ECHARTS_CDN:
 
 # ===================== HTML 头部 =====================
 html = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
-<title>决策增强版 v2.9.0 · 今日行情分析 · 10标的 · kingforex-skill</title>
+<title>决策增强版 v2.10.0 · 今日行情分析 · 10标的 · kingforex-skill</title>
 """ + _ECHARTS_TAG + """
 """ + style_block + """</head><body><div class="container">
 <div class="header">
-<h1>📊 今日行情分析 · 决策增强版 v2.9.0</h1>
+<h1>📊 今日行情分析 · 决策增强版 v2.10.0</h1>
 <div class="meta">基准时间: <b>""" + NOW + """</b> ｜ 标的: 金/银/美元/欧元/英镑/日元/WTI原油 + 利差最大货币对(AUDJPY) + 韩元(USDKRW)<br>
 ⏱ 数据截至: <b>行情报价 金十实时 2026-09-18 13:50 ｜ 日K Twelve Data 末根 2026-09-18 ｜ FRED 利率观测 09-18/17 ｜ 财经日历金十 09-18 13:50 ｜ CFTC COT 近期当周</b>（各节首行附分项截至时间, 全量溯源见十八节）<br>
 结构: 决策总览 → 交易计划 → 分析论证(快照/评分/宏观/数据/跨市场/K线/量化) → 决策工具(情景/凯利/相关性/风险/止损) → 综合判定 → 日志/回测 → 校验 → 纪律<br>
@@ -1185,7 +1185,7 @@ html += (sec01 + sec02 + sec03 + sec04 + _SEC04B + sec05 + sec06
          + sec07 + sec08 + sec09 + sec10 + sec11 + sec12 + sec13 + sec14
          + sec15 + sec17 + sec18 + sec16 + _SEC20 + sec19)
 
-html += """<div class="footer">kingforex-skill v2.9.0 决策增强版｜ 基准 """ + NOW + """ ｜ 数据溯源见⑱ ｜ 本分析仅供决策参考, 不代客下单, 不自动交易</div>
+html += """<div class="footer">kingforex-skill v2.10.0 决策增强版｜ 基准 """ + NOW + """ ｜ 数据溯源见⑱ ｜ 本分析仅供决策参考, 不代客下单, 不自动交易</div>
 </div>
 <script>
 """ + "\n".join(charts_js) + """
@@ -1311,14 +1311,14 @@ def freshness_gate(text, label):
 
 print("[鲜度门禁] 『数据截至/取数/末根』中与基准日不符的日期字面量: %d 处%s"
       % (freshness_gate(html, "HTML"), "(已用 --allow-stale 放行)" if _ALLOW_STALE else ""))
-path = os.path.join(OUT, "今日行情分析_决策增强版_v2.9.0_" + NOW_DATE + ".html")
+path = os.path.join(OUT, "今日行情分析_决策增强版_v2.10.0_" + NOW_DATE + ".html")
 open(path, "w", encoding="utf-8").write(html)
 _cdn_after = html.count("cdn.jsdelivr.net")
 print("HTML written:", path, len(html), "bytes | charts:", len(charts_js), "| CDN refs:", _cdn_after)
 
 # ===================== MD 双版本 (19节新顺序 · 10标的) =====================
 md = []
-md.append("# 今日行情分析 · 决策增强版 v2.9.0")
+md.append("# 今日行情分析 · 决策增强版 v2.10.0")
 md.append("> 基准时间: **" + NOW + "** ｜ kingforex-skill ｜ 10 标的（含韩元 USDKRW 正式纳入框架）｜ 数据溯源见第十六节")
 md.append("")
 md.append("## 一、今日决策总览")
@@ -1508,8 +1508,8 @@ for cat, items in DISCIPLINE6:
     md.append("- **" + cat + "**: " + "; ".join(items))
 md.append("")
 md.append("---")
-md.append("kingforex-skill v2.9.0 决策增强版｜ 仅供决策参考, 不代客下单, 不自动交易")
-md_path = os.path.join(OUT, "今日行情分析_决策增强版_v2.9.0_" + NOW_DATE + ".md")
+md.append("kingforex-skill v2.10.0 决策增强版｜ 仅供决策参考, 不代客下单, 不自动交易")
+md_path = os.path.join(OUT, "今日行情分析_决策增强版_v2.10.0_" + NOW_DATE + ".md")
 # 修复(2026-09-28): 原为两份完全相同的 _md_subs 循环(等价冗余), 已合并为一份。
 _md_subs = _html_subs + []
 for i in range(len(md)):
@@ -1588,6 +1588,6 @@ for i in range(4, 10):
     for c in range(1, len(cols4)+1): ws4.cell(row=i, column=c).border = border
 for i, w in enumerate([8,9,8,8,8,11,13,13,12,28,28], 1):
     ws4.column_dimensions[chr(64+i)].width = w
-xl_path = os.path.join(OUT, "交易复盘模板_v2.9.0.xlsx")
+xl_path = os.path.join(OUT, "交易复盘模板_v2.10.0.xlsx")
 wb.save(xl_path)
 print("XLSX written:", xl_path)

@@ -1,5 +1,28 @@
 # kingforex-skill 更新日志
 
+## v2.10.0 — 本地 MT4/MT5 软件数据设为第一优先数据源 · 2026-09-29
+
+**⚠️ 本次为数据源优先级调整，不改报告格式**——冻结模板、23 节结构、15 图与 CSS 全部未动。
+
+### 变更
+
+1. **新增本地 MT5 数据源 `scripts/mt5_local_kline.py`（第一优先）**
+   - 以本机运行中的 MT5 终端（MetaTrader5 Python API）拉取真实 H1 历史，聚合为日线，
+     写出生成器可直接消费的 `kline/{SYM}_1d.csv`（列 `datetime,open,high,low,close,volume`，
+     北京日期，与 Twelve Data 产出格式完全一致）。
+   - 覆盖生成器 7 标的中的 6 个：XAUUSD / EURUSD / GBPUSD / USDJPY / AUDUSD / AUDJPY；
+     **USDKRW 不在 MT5 内，由 Twelve Data 外部源补齐**。
+   - 相比外部 API 的增量价值：真实逐棒成交量（Twelve Data 外汇品种 volume 恒为 0.0）、
+     逐棒点差，以及与实盘账户同源的价格（避免第三方源与经纪商报价漂移）。
+2. **每日驱动 `run_daily_forex.py` 数据源优先级重排**
+   - 原：仅 Twelve Data → 失败则快照回退。
+   - 现：**本机 MT5（优先）→ Twelve Data 补齐缺失品种 → 快照回退**；三段均失败才降级，
+     且降级时显式 `KINGFOREX_ALLOW_STALE=1`、报告内标注数据基准日与滞后天数。
+3. **依赖新增**：`MetaTrader5` 包（pip install MetaTrader5，已含 numpy）；MT5 终端需已登录账户。
+   （本技能其余脚本仍为纯标准库，未受影响。）
+4. **版本号对齐**：生成器 docstring / `<title>` / `<h1>` / 页脚 / HTML·MD·XLSX 文件名中的
+   `v2.9.0` → `v2.10.0`；`scripts/exposure.py` 的 User-Agent 同步；报告版本与技能版本一致。
+
 ## v2.9.0 — 一致性修复版(数值口径 / 崩溃 / 数据源 / 量化 / 开仓闸门) · 2026-09-28
 
 **⚠️ 本次为纯缺陷修复，不改报告格式**——冻结模板、23 节结构、15 图与 CSS 全部未动。
