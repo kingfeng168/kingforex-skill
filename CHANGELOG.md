@@ -1,5 +1,51 @@
 # kingforex-skill 更新日志
 
+## v2.11.0 — 移除白银(XAGUSD)/WTI(USOIL)，降至 8 品种 · 2026-09-29
+
+**⚠️ 本次为品种范围调整 + 版本号更新，报告格式骨架未动。**
+
+### 变更
+
+1. **移除 XAGUSD（白银）和 USOIL（WTI 原油）—— 不交易这两个品种**
+   - `SNAP_LIST` / `SCORES` / `SNAP_EXTRA` / `SNAP_NOKL` / `keylevels` / `QUOTES` /
+     `macro_events` / `OTHER8` / `MACRO2` / `CORR_HIGH` / `INST` / 凯利下拉 / pip 计算表
+     全部移除 XAGUSD、USOIL 条目。
+   - `extra_sections_20260916.py`：`SUBS` 与 `ORDERED_SYMS` 同步移除 2 品种；
+     `CHECKS` 中「XAGUSD / USOIL 日K缺失」条目改为「8 标的日K全部实测抓取，无缺失」。
+   - 移除关联文案：`silver_oil_note`（K线数据源暂缺提示）、跨市场验证链 WTI 条目、
+     相关性矩阵 XAU↔XAG / USOIL↔AUDJPY、MD 相关性与下拉列表对应条目。
+   - 报告从 10 品种降至 **8 品种**：XAUUSD / DXY / EURUSD / GBPUSD / USDJPY /
+     AUDUSD / AUDJPY / USDKRW。
+2. **版本号全量对齐 v2.10.0 → v2.11.0**
+   - 生成器 docstring / `<title>` / `<h1>` / 页脚 / HTML·MD·XLSX 文件名；
+   - `scripts/exposure.py` User-Agent；SKILL.md frontmatter；CHANGELOG（本节）。
+3. **「10标的」全量改为「8标的」**（快照标题 / 评分卡标题 / 评分图表 / 宏观大事综合 /
+   MD 各节对应文案），与品种数一致。
+
+## v2.10.0 调准 — 持仓计划条件显示 + 评分子项明细统一表格 · 2026-09-29
+
+**⚠️ 本次为展示逻辑调准，不改数据源与报告格式骨架。**
+
+### 变更
+
+1. **持仓计划模块条件显示（`gen_decision_enhanced_v256.py`）**
+   - 新增 `SHOW_POSITION_PLAN` 布尔 flag（默认 `False`）。
+   - `sec02` 拆分为 `sec02_head`（建仓判定，始终显示）+ `sec02_position`（2.1 持仓计划，条件显示）。
+   - 触发规则：用户明确说明有持仓 OR 评估可建仓 → `True`；已发出平仓信号 → `False`。
+   - MD 端同步条件化（`if SHOW_POSITION_PLAN:` 包裹 2.1 表格块）；日志节中「同 2.1 持仓计划表」
+     冗余引用已移除。
+   - 当前状态：AUDJPY 0.02 手已全部获利了结（平仓信号已发出）→ 持仓计划不展示，
+     第二节仅保留建仓判定与「空仓即结论」结论。
+
+2. **评分子项明细统一表格（`extra_sections_20260916.py`）**
+   - `SUBS` 从 2 品种（AUDJPY / USDKRW）扩充至全部 10 品种，新增子项数据：
+     XAUUSD / XAGUSD / DXY / EURUSD / GBPUSD / USDJPY / USOIL / AUDUSD。
+   - 子项分值与 `SCORES` 四维分同源（维内均值 = 该维子项均值 → 加权求和 → 总分）。
+   - `_sub_table()` 重写为 `_unified_table()`：生成**单一** `<table>`，8 列
+     （品种 | 维度(权重) | 子项(原始值) | 标准化分 | 维内均值 | 加权分 | 总分 | 判定），
+     覆盖全部 10 品种 × 4 维 × 3 子项 + 10 行总分行，共 130 行。
+   - `sec04b()` 标题改为「四·补 评分模型子项明细（宏观25%·技术30%·量化25%·情绪20% · 全部10品种同表）」。
+
 ## v2.10.0 — 本地 MT4/MT5 软件数据设为第一优先数据源 · 2026-09-29
 
 **⚠️ 本次为数据源优先级调整，不改报告格式**——冻结模板、23 节结构、15 图与 CSS 全部未动。

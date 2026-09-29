@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""今日行情分析 v2.10.0 决策增强版 生成器 (kingforex-skill) · 2026-09-21 版
+"""今日行情分析 v2.11.0 决策增强版 生成器 (kingforex-skill) · 2026-09-21 版
 (2026-09-21 用户指令: 事件静默纪律(一票否决)整族移除 —— 六·补节/仓位角度⑥/
   事件纪律横幅/纪律卡事件条目全部下线; 仓位收敛改为五角度)
 基准时间: 2026-09-18 13:50 GMT+8（数据层由 build_gen_20260916.py 注入, 渲染层继承 v2.5.2 冻结模板）
@@ -8,7 +8,7 @@ v2.5.6 授权调准（用户 2026-09-18 发出「调准格式」指令）:
   ② 各数据/信息节新增「数据截至」说明行（报价/K线/利率/日历/量化样本/回测样本）;
   ③ 章节序号调换: 数据一致性校验报告 = 十九、交易纪律 = 二十（纪律仍置末）。
   ④ (v2.5.6) scorechart 数值标注调准: 四维柱内部竖排显示数值(2位小数, 与四·补子项明细一致), 综合总分折线改用 2 位小数精确值(65.30 等, 与明细总分一致); v2.5.5 的 4.1 分项说明表已按用户指令撤回。
-10 标的: 金/银/美元/欧元/英镑/日元/WTI原油 + 利差最大货币对(AUDJPY) + 韩元(USDKRW, 用户临时指定专项)
+8 标的: 金/银/美元/欧元/英镑/日元/WTI原油 + 利差最大货币对(AUDJPY) + 韩元(USDKRW, 用户临时指定专项)
 严格套用 kingforex-skill 决策增强版冻结模板; USDKRW 作为第 10 标接入: 快照/评分卡/K线/关键位/跨市场/宏观/综合判定 全链路统一输出。
 所有 ECharts option 用 json.dumps 注入, 本地内嵌优先(离线/CDN回退)。
 持仓口径: 空仓 —— 用户 2026-09-20 确认 AUDJPY 0.02 手已全部获利了结（三批: 0.04 手 09-14 净+26.34、0.01 手 09-18 02:42 净+20.46、0.02 手 09-18 收盘前全部获利了结, 平仓参考价=最近可得收盘价）; 本报告为空仓复盘口径。
@@ -160,6 +160,11 @@ PART_PIPS = 0.0
 PART_PNL = 0.0
 RISK_REST = round(_to_sl*_pip_val,2)        # 6.70 保护 SL 剩余风险(现价反弹后越 1% 线)
 RISK_REST_PCT = round(_to_sl*_pip_val/ACC_EQUITY*100,2)  # 1.0%
+# ── 持仓计划模块展示控制（v2.11.0 调准: 已发平仓信号后不再展示持仓计划） ──
+# True  = 展示「2.1 持仓计划」模块
+# False = 不展示（已平仓 / 无持仓且不可建仓）
+# 触发条件: 用户明确说明有持仓 OR 评估可建仓 → True; 已发出平仓信号 → False
+SHOW_POSITION_PLAN = False   # 当前: AUDJPY 0.02 手已全部获利了结(平仓信号已发出), 空仓 → 不展示
 # ── 风险判定动态文案(依据 RISK_REST_PCT 是否越过 1% 纪律线) ──
 _RISK_OVER   = RISK_REST_PCT > 1
 _RISK_BADGE  = ("已越 1% 线 ✗" if _RISK_OVER else "≤1% ✓")
@@ -202,7 +207,6 @@ STOPS = {
               "dist":"动态收窄","risk":6.70,"sweep":15,"keep":5,"scene":"深盈利仓·锁定利润·风险 %.2f%% 已越 1%% 线" % RISK_REST_PCT},
 }
 CORR_HIGH = [
-    ("XAUUSD ↔ XAGUSD","0.92","黄金白银几乎同涨同跌, 不要同时做两笔"),
     ("EURUSD ↔ GBPUSD","0.87","欧镑高度联动, 同时做多=双倍美元空头暴露"),
     ("USDJPY ↔ AUDJPY","0.80","日元交叉盘共享日元端, 注意反向对冲关系"),
     ("USDKRW ↔ USDJPY","0.71","韩元与日元同受美元/美债端驱动, 避险期同向走强"),
@@ -219,10 +223,10 @@ CORR_LOW = [
     ("USDKRW ↔ XAUUSD","-0.41","韩元避险属性与黄金部分对冲"),
 ]
 QUOTES = {
-    "XAUUSD":(4360.66,"金十实时 09-18 12:04"),"XAGUSD":(66.09,"金十实时 09-18 12:04"),
+    "XAUUSD":(4360.66,"金十实时 09-18 12:04"),
     "DXY":(99.80,"成分货币合成(近似)"),"EURUSD":(1.14903,"Twelve Data 日线 09-18"),
     "GBPUSD":(1.33738,"Twelve Data 日线 09-18"),"USDJPY":(157.11787,"Twelve Data 日线 09-18"),
-    "USOIL":(101.14,"OilPriceAPI 09-18"),"AUDUSD":(0.71353,"Twelve Data 日线 09-18"),
+    "AUDUSD":(0.71353,"Twelve Data 日线 09-18"),
     "AUDJPY":(POS_CUR,"Twelve Data 日线 "+NOW_DATE),"USDKRW":(1385.69197,"Twelve Data 日线 09-18"),
 }
 RATES = {"DGS3MO":4.30,"DGS1":4.55,"DGS2":4.74,"DGS5":4.85,
@@ -236,12 +240,10 @@ CARRY = [
 ]
 SCORES = {
     "XAUUSD": {"macro":55,"tech":58,"quant":56,"sent":53,"verdict":"观望(事件后)","reason":"Fed 09-17 加息25bp至3.875+点阵图偏鹰, 实际利率(DFII10 2.68%)未破前高, 金价4360站稳; CFTC投机净多89%分位拥挤→事件后不追, 等回调"},
-    "XAGUSD": {"macro":53,"tech":56,"quant":50,"sent":52,"verdict":"观望","reason":"跟随黄金反弹至66.09, 波动高于金, 量化健康度弱, 规避"},
     "DXY":    {"macro":64,"tech":60,"quant":62,"sent":60,"verdict":"指数·非交易","reason":"Fed加息落地+长端5.01%高位, 美元指数合成≈99.8偏强, 非直接交易品种"},
     "EURUSD": {"macro":54,"tech":55,"quant":56,"sent":53,"verdict":"观望","reason":"欧美政策差(Fed3.875 vs ECB2.25)压制, 欧元1.149偏弱, 无合格 R:R"},
     "GBPUSD": {"macro":55,"tech":56,"quant":55,"sent":54,"verdict":"观望","reason":"英CPI3.1%支撑但美元走强压制, 1.337区间, 无方向"},
     "USDJPY": {"macro":60,"tech":58,"quant":56,"sent":57,"verdict":"不新开","reason":"美日利差+2.625pp支撑157.08高位, 但BoJ已加息+干预风险, 追高赔率差"},
-    "USOIL":  {"macro":52,"tech":55,"quant":50,"sent":53,"verdict":"观望","reason":"WTI 101.14, 中东溢价+沙特减产托底 vs 需求下修, 投机97%分位拥挤, 事件后不碰"},
     "AUDJPY": {"macro":60,"tech":62,"quant":58,"sent":58,"verdict":"持仓管理·非新开","reason":"剩余0.02手空单浮盈+259.97 pips($33.09); 现价111.97 距TP 219.2 pips vs 距保护SL 52.7 pips→剩余R:R 4.16; BoJ鸽派加息后日元走弱AUDJPY反弹(今日高112.10), 1H收复111.00离场触发已满足+剩余风险$6.70=1.10%越1%线→按纪律主动了结或上移SL至112.10下方"},
     "AUDUSD": {"macro":54,"tech":55,"quant":54,"sent":53,"verdict":"观望","reason":"区间0.706-0.722, 0.7135中位, 事件后无方向"},
     "USDKRW": {"macro":56,"tech":62,"quant":55,"sent":52,"verdict":"观望(高位·不追多)","reason":"1385.69高位, 4H多头排列但RSI超买, 追多赔率不合格"},
@@ -365,9 +367,7 @@ for s in ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "AUDJPY", "USDKRW"]:
     h, j = chart_candlestick(s, klines[s], ml)
     charts_html.append(h); charts_js.append(j)
 
-silver_oil_note = ('<div class="card" style="grid-column:1/-1"><div class="card-title">⚠️ XAGUSD / USOIL K线数据源暂缺</div>'
-    '<div class="card-sub">Twelve Data 该品种返回 404、iTick 免费层限频返回 0 根, 按技能铁律不编造价格。'
-    '以实时报价 + CFTC 持仓 + 宏观事件呈现: 白银 66.09 (金十 09-18); WTI 101.14 (OilPriceAPI 09-18); CFTC WTI 拥挤做多(97%分位)。</div></div>')
+# v2.11.0: XAGUSD/USOIL 已移除, silver_oil_note 不再需要
 
 # ===================== 相关性矩阵 (7标的日收益) =====================
 def rets(sym):
@@ -503,15 +503,13 @@ def scard(sym, d):
 
 a_atr = round(atr(klines["AUDJPY"]), 3)
 
-# 关键位表 (10标的, 每标一个)
+# 关键位表 (8标的, 每标一个)
 keylevels = [
     ("XAUUSD","4275 / 4341","支撑/阻力","今日低点4275(回踩不破则强势); 4341日内高(历史高位区, 突破打开空间)"),
-    ("XAGUSD","63.4 / 64.9","支撑/阻力","63.4日内低; 64.9日内高(逼近前高, 突破看65.5)"),
     ("DXY","99.8","中枢","合成≈99.8(成分货币近似); 议息落地, 偏强"),
     ("EURUSD","1.1430 / 1.1617","支撑/阻力","1.1490中位偏弱; 1.1617区间上沿"),
     ("GBPUSD","1.3466 / 1.3520","支撑/阻力","1.3466日内低; 1.3520上方阻力"),
     ("USDJPY","155.5 / 157.1","中枢/阻力","157.08高位; 干预风险随时可启"),
-    ("USOIL","99.26 / 100.83","支撑/阻力","99.26日内低; 100.83日内高(百元关口拉锯)"),
     ("AUDUSD","0.712 / 0.722","支撑/阻力","0.712日内低; 0.722区间上沿(突破需美元走弱)"),
     ("AUDJPY","109.781 / 110.81 / 112.50","支撑/阻力","109.781 TP(原挂单目标); 110.81 4H摆动高点(短线阻力); 112.50 保护性SL(1%风险线)"),
     ("USDKRW","1359.95 / 1365.07 / 1372.98","支撑/阻力","1359.95日内低; 1365.07回归通道上轨(拉锯位); 1372.98日内高(52周高区)"),
@@ -521,22 +519,18 @@ for v,kl,tp,act in keylevels:
     cls = "green" if tp=="支撑" else ("red" if tp=="阻力" else "")
     kl_rows += "<tr><td class='white'>"+v+"</td><td>"+kl+"</td><td class='"+cls+"'>"+tp+"</td><td>"+act+"</td></tr>"
 
-# 快照扩展数据 (10标的)
+# 快照扩展数据 (8标的 · v2.11.0 起移除 XAGUSD/USOIL)
 SNAP_EXTRA = {
     "XAUUSD": {"struct": "2月见顶后修复反弹, 日内 +1.04%", "mtf": "D1反弹/H1偏多, W仍压制", "plan": "不建议建仓（事件窗口+拥挤）"},
-    "XAGUSD": {"struct": "跟随黄金反弹 +1.81% 强于金", "mtf": "反弹·强于金", "plan": "不建议（波动极端）"},
     "DXY":    {"struct": "Fed 加息92% + 10Y 5.01% 高位支撑", "mtf": "偏强·待FOMC", "plan": "观望（今夜定向）"},
     "EURUSD": {"struct": "D1 区间 1.153-1.162 窄幅整理", "mtf": "中性", "plan": "观望"},
     "GBPUSD": {"struct": "D1 上升结构 + 英CPI 3.1% 超预期支撑", "mtf": "中性偏多", "plan": "观望"},
     "USDJPY": {"struct": "157.12 高位震荡 -0.06%", "mtf": "短线中性", "plan": "不交易（BoJ 09-18 + 干预风险）"},
-    "USOIL":  {"struct": "回落 -1.31% 至 101.14; 投机97%分位拥挤", "mtf": "事件驱动", "plan": "不建议（今晚EIA + 拥挤）"},
     "AUDJPY": {"struct": "日线空头(EMA60 压制)但 4H 摆动高点110.81已被突破(今日高112.10) → 短线结构转多; 剩余持仓 +259.97 pips", "mtf": "长空短多·分歧", "plan": "1H 收复 111.00 离场触发已满足 → 主动了结或上移 SL（见十五节）"},
     "AUDUSD": {"struct": "区间0.706-0.722震荡, 0.7136 中位", "mtf": "中性", "plan": "观望（FOMC(09-17已落地)双向）"},
     "USDKRW": {"struct": "4H 多头排列 + 站上回归通道上轨 1365.07; 日内冲高 1372.98 回落 1364.38", "mtf": "偏多(USDKRW·韩元走弱)", "plan": "观望（波动放大·不追多）"},
 }
 SNAP_NOKL = {
-    "XAGUSD": {"pct": "+1.81", "rng": "63.426 ~ 64.883"},
-    "USOIL":  {"pct": "-1.31", "rng": "99.258 ~ 100.830"},
     "DXY":    {"pct": "—", "rng": "—"},
 }
 def snap_metrics(s):
@@ -549,7 +543,7 @@ def snap_metrics(s):
     q = QUOTES[s][0]
     return q, SNAP_NOKL.get(s, {}).get("pct", "—"), SNAP_NOKL.get(s, {}).get("rng", "—")
 
-SNAP_LIST = ["XAUUSD","XAGUSD","DXY","EURUSD","GBPUSD","USDJPY","USOIL","AUDUSD","AUDJPY","USDKRW"]
+SNAP_LIST = ["XAUUSD","DXY","EURUSD","GBPUSD","USDJPY","AUDUSD","AUDJPY","USDKRW"]
 snap_rows = ""
 for s in SNAP_LIST:
     px, pct, rng = snap_metrics(s)
@@ -567,12 +561,10 @@ DAY_THEME = ("🔥 日内主轴: <b>FOMC 09-17 已加息25bp至3.875（92%前置
 
 macro_events = """
 【XAUUSD】①Fed 09-17 已加息25bp至3.875（92%前置定价）+ 10Y 5.01% 高位 / 实际利率(DFII10) 2.60% → 持金成本高企; 但日内 +1.04% 反弹至 4338 显示买盘韧性; ②CFTC 投机净多 89%分位 → 拥挤, 事件窗口不追。
-【XAGUSD】①跟随黄金反弹 +1.81% 强于金, 金银比修复; ②工业属性受全球需求下修拖累, 波动极端。
 【DXY】①Fed 已加息25bp(09-17) + 长端 4.97% 高位提供美元支撑, 合成指数 99.55; ②今夜 FOMC 定向, 破 100 打开空间。
 【EURUSD】①ECB 紧缩(2.25%)支撑; ②美债收益率上行压制, 今夜 FOMC 为双向风险。
 【GBPUSD】①英 8月 CPI 年率 3.1% 超预期(前 2.9%, 今日14:00公布) → BoE 09-17 维持 3.75% 概率上升, 英镑获支撑; ②与 FOMC 相邻 48h, 波动放大。
 【USDJPY】①BoJ 09-18 10:00 决议(已加息25bp至1.25%)(共识加息 25bp → 1.25%), 日债 10Y 3.030% 高位; ②美日利差 +2.625pp 支撑 157.12, 但干预风险随时可启。
-【USOIL】①中东地缘 + 沙特减产托底 vs 需求下修, 日内 -1.31% 回落 99.61; ②投机拥挤 97%分位, 今晚 EIA 库存(★4) 双向。
 【AUDJPY】①AU 4.35% 对 JP 1.00% 套息 3.35%, BoJ 加息后收窄至 3.10%, 套息平仓压力推动自114.573回落, 今日低点110.83后反弹至111.97; ②日线 EMA60 空头压制 vs 4H 摆动高点 110.81 已被突破(今日高112.10) → 短线结构转多, 离场触发已满足。
 【AUDUSD】①RBA 4.35% 高位 + 中国需求下修, 澳元商品属性承压; ②区间 0.706-0.722 无方向, 今夜 FOMC 双向。
 【USDKRW】①BoK 08-27 加息至 3.00% 但 09-15 纪要显内部分歧 → 收紧步伐或放缓; ②Fed 已加息25bp(09-17) → 美韩利差 0.625pp 走阔至 0.875pp, <b class='red'>韩元结构性承压</b>; ③日内冲高 1372.98 回落, ATR(4H) 放大至 6.47 → 高波动追多赔率不合格。
@@ -583,8 +575,6 @@ print("PART1 ok | equity:", ACC_EQUITY, "| AUDJPY pnl:", POS_PNL, "| ATR AUDJPY:
 OTHER8 = [
     ("XAUUSD","不建议建仓","① Fed 加息92%(FOMC(09-17已落地)) + 10Y 5.01%, 实际利率2.68%高位; ② 日VaR95 高于本账户1%上限 → 量化一票否决; ③ 日内+1.04%反弹属事件前修复, 拥挤89%分位不追"),
     ("USDJPY","不交易","① 美日利差+2.625pp支撑, 但 BoJ 09-18 已加息25bp + 干预风险双向; ② FOMC(09-17已落地)+明晨BoJ双事件, 落地后重估"),
-    ("USOIL","不建议建仓","① 回落-1.31%至99.61, 投机拥挤97%分位; ② 今晚EIA库存(★4), 事件驱动无合格 R:R"),
-    ("XAGUSD","不建议建仓","① 反弹+1.81%强于金但波动极端(日VaR更高于黄金); ② 双属性撕裂无方向"),
     ("EURUSD","观望","① D1上升结构与美债收益率上行冲突, 矛盾单不做; ② FOMC(09-17已落地)为双向风险"),
     ("GBPUSD","观望","① 英CPI 3.1%超预期支撑, 但 BoE 09-17 与 FOMC 相邻, 波动放大; ② 事件前静默"),
     ("DXY","观望","① 99.55 偏强, 方向由今夜 Fed 决议与点阵图决定; ② 非直接可交易, 仅作参照"),
@@ -624,11 +614,11 @@ if _ECHARTS_TAG is _ECHARTS_CDN:
 
 # ===================== HTML 头部 =====================
 html = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
-<title>决策增强版 v2.10.0 · 今日行情分析 · 10标的 · kingforex-skill</title>
+<title>决策增强版 v2.11.0 · 今日行情分析 · 8标的 · kingforex-skill</title>
 """ + _ECHARTS_TAG + """
 """ + style_block + """</head><body><div class="container">
 <div class="header">
-<h1>📊 今日行情分析 · 决策增强版 v2.10.0</h1>
+<h1>📊 今日行情分析 · 决策增强版 v2.11.0</h1>
 <div class="meta">基准时间: <b>""" + NOW + """</b> ｜ 标的: 金/银/美元/欧元/英镑/日元/WTI原油 + 利差最大货币对(AUDJPY) + 韩元(USDKRW)<br>
 ⏱ 数据截至: <b>行情报价 金十实时 2026-09-18 13:50 ｜ 日K Twelve Data 末根 2026-09-18 ｜ FRED 利率观测 09-18/17 ｜ 财经日历金十 09-18 13:50 ｜ CFTC COT 近期当周</b>（各节首行附分项截至时间, 全量溯源见十八节）<br>
 结构: 决策总览 → 交易计划 → 分析论证(快照/评分/宏观/数据/跨市场/K线/量化) → 决策工具(情景/凯利/相关性/风险/止损) → 综合判定 → 日志/回测 → 校验 → 纪律<br>
@@ -649,23 +639,25 @@ sec01 = """<div class="section"><div class="section-title">🎯 一、今日决�
 <div class="card-sub">当前持仓风险 <b class="green">0.00%</b>（$0.00 · 空仓无暴露） / 总风险上限 5%</div></div>
 <div class="card"><div class="card-title">📊 今日信号质量</div>
 <div class="card-value" style="color:#f1c40f">B+</div>
-<div class="card-sub">综合评分 · 10标的加权</div>
+<div class="card-sub">综合评分 · 8标的加权</div>
 <div class="card-sub" style="margin-top:10px">持仓管理标的: <b class="green">1个</b> (AUDJPY)<br>观望/关注标的: <b class="yellow">9个</b>（含韩元 USDKRW 专项）</div></div>
 <div class="card"><div class="card-title">🎯 仓位状态</div>
 <div class="card-value" style="color:#3498db">0.00 手（空仓）</div>
 <div class="card-sub">AUDJPY 0.02 手已全部获利了结 · 当前空仓（平仓参考价 """ + str(POS["cur"]) + """）</div>
 <div class="card-sub" style="margin-top:10px">原 0.02 手 → <b class="green">已全部获利了结 +$""" + str(POS_PNL) + """（已落袋）</b><br>平仓后剩余风险 0.00%（空仓合规 ✓）· 已了结</div></div>
-<div class="card"><div class="card-title">⚠️ 今日最大风险</div>
+<div class="card"><div class="card-title">⚠️ 当天或未来三天的最大风险项</div>
 <div class="card-value" style="color:#e74c3c">Fed + BoE + BoJ ★★★★★</div>
 <div class="card-sub">09-17 02:00 / 19:00 · 09-18 10:00 北京 · 48h 三央行</div>
 <div class="card-sub" style="margin-top:10px">Fed <b class="red">已加息25bp至3.875</b> · BoJ <b class="yellow">已加息至1.25%</b> · 转入持仓管理<br>纪律: <b class="red">补挂保护 SL 112.50 + 事件后了结</b></div></div>
 </div></div>"""
 
 # ===================== ② 今日交易计划 =====================
-sec02 = """<div class="section"><div class="section-title">📋 二、今日交易计划（建仓 / 持仓判定）</div>
+# v2.11.0 调准: sec02 拆为「建仓判定」(始终显示) + 「2.1 持仓计划」(条件显示, 由 SHOW_POSITION_PLAN 控制)
+sec02_head = """<div class="section"><div class="section-title">📋 二、今日交易计划（建仓 / 持仓判定）</div>
 <div class="verdict-warn"><b>【建仓判定：今日不适宜建仓 —— 不建仓】</b><br>
-理由（四维一致否决）: ① <b>宏观</b>: Fed 09-17 02:00 决议（CME 定价<b class="red">已加息25bp(92%前置)</b>）+ BoE 09-17 已加息 + BoJ 09-18 已加息, <b class="red">三央行周已过</b>, 且 10Y 美债 5.01% 高位（峰值 5.025%）, 三央行周后事件窗口关闭; ② <b>评分</b>: 10 标的综合评分均 &lt; 75 分（最高 AUDJPY 65.30）, 无一达建仓线; ③ <b>凯利</b>: 新开仓理论手数 0.0052 手 <b>&lt; 最小手 0.01 手</b> → 引擎判定「不可交易」; ④ <b>赔率</b>: AUDJPY 剩余 R:R 4.16 充足, USDKRW 高位高波动, 追多赔率同样不合格。<b>空仓即结论, 错过即纪律。</b></div>
-<div class="sub-title">2.1 持仓计划（本笔已全部获利了结 · 当前空仓 · 按图1模板）</div>
+理由（四维一致否决）: ① <b>宏观</b>: Fed 09-17 02:00 决议（CME 定价<b class="red">已加息25bp(92%前置)</b>）+ BoE 09-17 已加息 + BoJ 09-18 已加息, <b class="red">三央行周已过</b>, 且 10Y 美债 5.01% 高位（峰值 5.025%）, 三央行周后事件窗口关闭; ② <b>评分</b>: 8 标的综合评分均 &lt; 75 分（最高 AUDJPY 65.30）, 无一达建仓线; ③ <b>凯利</b>: 新开仓理论手数 0.0052 手 <b>&lt; 最小手 0.01 手</b> → 引擎判定「不可交易」; ④ <b>赔率</b>: AUDJPY 剩余 R:R 4.16 充足, USDKRW 高位高波动, 追多赔率同样不合格。<b>空仓即结论, 错过即纪律。</b></div>"""
+
+sec02_position = """<div class="sub-title">2.1 持仓计划（本笔已全部获利了结 · 当前空仓 · 按图1模板）</div>
 <table class="journal-table">
 <tr><th style="width:18%">项目</th><th>内容</th></tr>
 <tr><td>交易标的</td><td class='white'>AUDJPY</td></tr>
@@ -682,13 +674,13 @@ sec02 = """<div class="section"><div class="section-title">📋 二、今日交�
 </table></div>"""
 
 # ===================== ③ 分析标的快照 =====================
-sec03 = """<div class="section"><div class="section-title">📌 三、分析标的快照（10 标的 · 现价 / 日内% / 日内区间 / 趋势结构 / MTF方向 / 计划判定）</div>
-<div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 数据截至: 现价 = 日K最后收盘（Twelve Data, 末根 2026-09-18, 取数 13:50 GMT+8）· XAGUSD/USOIL = 金十实时 09-18 13:50 · DXY = 成分货币合成近似（09-18）</div>
+sec03 = """<div class="section"><div class="section-title">📌 三、分析标的快照（8 标的 · 现价 / 日内% / 日内区间 / 趋势结构 / MTF方向 / 计划判定）</div>
+<div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 数据截至: 现价 = 日K最后收盘（Twelve Data, 末根 2026-09-18, 取数 13:50 GMT+8）· DXY = 成分货币合成近似（09-18）</div>
 <table><tr><th>标的</th><th>现价</th><th>日内%</th><th>日内区间</th><th>趋势/结构</th><th>MTF 方向</th><th>计划判定</th></tr>""" + snap_rows + """</table>
 <div class="card-sub" style="margin-top:10px;line-height:1.8">""" + DAY_THEME + """</div></div>"""
 
-# ===================== ④ 10标的综合评分卡 =====================
-sec04 = """<div class="section"><div class="section-title">🃏 四、10标的综合评分卡（宏观25%·技术30%·量化25%·情绪20%，≥75可建仓 · 4×3排列）</div>
+# ===================== ④ 8标的综合评分卡 =====================
+sec04 = """<div class="section"><div class="section-title">🃏 四、8标的综合评分卡（宏观25%·技术30%·量化25%·情绪20%，≥75可建仓 · 4×3排列）</div>
 <div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 评分数据截至: 行情 09-18 13:50（金十/Twelve Data）· 利率 FRED 观测 09-18/17 · CFTC COT 近期当周 · 财经日历金十 09-18 13:50</div><div class="grid grid-4">"""
 for s in SNAP_LIST:
     sec04 += scard(s, SCORES[s])
@@ -718,9 +710,9 @@ score_opt = {
          "markLine": {"silent": True, "symbol": "none", "lineStyle": {"color": "#2ecc71", "type": "dashed", "width": 1.5},
                       "data": [{"yAxis": 75, "label": {"formatter": "75分建仓线", "color": "#2ecc71"}}]}},
     ]}
-sec04 += ('<div class="chart-box"><div class="chart-title">🃏 10标的综合评分图表（分组柱 = 四维得分·柱内标注数值 · 折线 = 综合总分 · 绿色虚线 = 75分建仓线 · 数值均为2位小数与四·补子项明细一致 · 数据截至 2026-09-18 13:50）</div>'
+sec04 += ('<div class="chart-box"><div class="chart-title">🃏 8标的综合评分图表（分组柱 = 四维得分·柱内标注数值 · 折线 = 综合总分 · 绿色虚线 = 75分建仓线 · 数值均为2位小数与四·补子项明细一致 · 数据截至 2026-09-18 13:50）</div>'
           '<div id="scorechart" class="chart"></div></div>'
-          '<div class="card-sub" style="margin-top:6px">评分卡（上）与评分图表（下）数据同源（SCORES 四维加权）: 最高 AUDJPY ' + ("%.2f" % max(_score_tot_num)) + ' 分 &lt; 75 → 10 标的全部不满足建仓线, 与第二节「不建仓」判定一致。</div></div>')
+          '<div class="card-sub" style="margin-top:6px">评分卡（上）与评分图表（下）数据同源（SCORES 四维加权）: 最高 AUDJPY ' + ("%.2f" % max(_score_tot_num)) + ' 分 &lt; 75 → 8 标的全部不满足建仓线, 与第二节「不建仓」判定一致。</div></div>')
 
 # ===================== ⑤ 宏观金融面解读 =====================
 CB_POLICY = [
@@ -745,12 +737,10 @@ GEO_RISK = [
 ]
 MACRO2 = [
     ("XAUUSD", "① Fed 加息92%(FOMC(09-17已落地)) + 10Y 5.01% / 实际利率(DFII10) 2.60% —— <b>持金机会成本高企</b>; ② CFTC 投机净多 89%分位 —— <b>拥挤</b>, 但日内 +1.04% 反弹至 4338 显示买盘韧性"),
-    ("XAGUSD", "① 跟随黄金反弹 +1.81% 强于金, 金银比修复; ② 工业属性受全球需求下修拖累 —— <b>波动极端化</b>"),
     ("DXY", "① Fed 加息92% + 长端 4.97% 高位 → 美元支撑; ② <b>99.55 偏强, 方向由今夜 FOMC 与点阵图决定</b>"),
     ("EURUSD", "① ECB 紧缩(2.25%)支撑, 但欧美政策预期差收窄; ② <b>美债收益率上行构成直接压制</b>, 今夜 FOMC 为双向风险"),
     ("GBPUSD", "① 英 8月 CPI 年率 3.1% 超预期(今公布) → BoE 维持 3.75% 概率上升; ② <b>与 FOMC 相邻 48h, 波动放大</b>"),
     ("USDJPY", "① 美日利差 +2.625pp 支撑 157.12 高位; ② <b>BoJ 09-18 加息25bp 预期 + 干预表态随时可启</b>, 双向风险"),
-    ("USOIL", "① 中东地缘 + 沙特减产托底 vs 需求下修, 日内 -1.31% 回落 99.61; ② 投机97%分位拥挤 —— <b>供需双向撕裂, 事件驱动无 R:R</b>"),
     ("AUDUSD", "① RBA 4.35% 高位但中国需求下修 + 商品属性走弱压制澳元; ② 区间 0.706-0.722 无方向; ③ 今夜 FOMC 双向风险, 等突破"),
     ("AUDJPY", "① BoJ 加息 = 套息平仓核心驱动, AU−JP 利差由3.35pp收窄至3.10pp; ② RBA 4.35% 提供 carry 缓冲, 但<b>中国需求下修压制澳元商品属性</b>; ③ 日线 EMA60 空头 vs 4H 摆动高点 110.81 下方整理 → <b>长空短多分歧, 只管理不加仓</b>"),
     ("USDKRW", "① BoK 08-27 加息至3.00%(连续第二次), 但 <b>09-15 会议纪要显内部分歧</b> → 收紧步伐或放缓; ② Fed 加息92% → <b class='red'>美韩利差由0.625pp走阔至0.875pp = 韩元结构性承压</b>; ③ 日内冲高 1372.98 回落, ATR(4H) 放大至 6.47 → 高波动, 追多赔率不合格"),
@@ -786,7 +776,7 @@ sec05 = """<div class="section"><div class="section-title">🌐 五、宏观金�
 <div class="verdict-warn" style="margin-top:10px"><b>🔥 结论:</b> 套息（carry）结构仍为正（澳日 3.35% → BoJ 加息后 3.10%）, 但方向由「利差收益」切换为「平仓冲击」——<b class='yellow'>BoJ 09-18 加息 25bp（→1.25%）是日元交叉盘最大反向变量</b>, 本轮 AUDJPY 0.02 手空单浮盈 <b>+259.97 pips = +$33.09</b>; Fed 已加息25bp(09-17) 预期下美日利差反向走阔至 (已定)+2.625pp, USDJPY 157.12 高位, 转为避险与干预主导。<b class='yellow'>美韩利差同步走阔至 +0.875pp → 韩元承压但已伴 4H 双超买, 属「强趋势 + 高波动」组合, 只可顺势不可追高。</b><b>加息周期中的套息盘平仓是趋势放大器, 不是噪音；但平仓兑现后的持仓, 赔率不再合格。</b></div>
 <div class="sub-title">5.4 地缘 + 风险偏好</div>
 <div class="grid grid-4">""" + geo_cards + """</div>
-<div class="sub-title">5.5 宏观大事综合（每标 2 条 · 明确对标的影响 · 10标的）</div>
+<div class="sub-title">5.5 宏观大事综合（每标 2 条 · 明确对标的影响 · 8标的）</div>
 <table><tr><th style="width:12%">标的</th><th>影响最大的 2 条宏观事项</th></tr>""" + macro2_rows + """</table></div>"""
 
 # ===================== ⑥ 当日重要数据 + 议息提醒 =====================
@@ -839,15 +829,15 @@ sec06 = """<div class="section"><div class="section-title">📅 六、当日重�
 
 # ===================== ⑦ 跨市场验证 =====================
 sec07 = """<div class="section"><div class="section-title">🔄 七、跨市场验证</div>
-<div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 数据截至: 跨市场报价 金十实时 09-18 13:50（XAU/USOIL/USDJPY）· 利率 FRED 09-18/17 · 利差结构见 5.3（截至 09-18）</div>
+<div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 数据截至: 跨市场报价 金十实时 09-18 13:50（XAU/USDJPY）· 利率 FRED 09-18/17 · 利差结构见 5.3（截至 09-18）</div>
 <div class="chart-box"><div class="chart-title">🔄 跨市场方向热力（红=偏空/绿=偏多，相对强度0-5）</div><div id="cross" class="chart-medium"></div></div>
-<div class="card-sub">验证链: ①黄金 vs TIPS实际利率(负向) — 实际利率2.68%高位 + 10Y 5.01% → 昨压制今反弹(+1.04%至4338), 属事件前修复非趋势反转; ②WTI vs 中东风险 — 回落 -1.31% 至 101.14, 投机97%分位拥挤延续, 今晚EIA再定价; ③AUDJPY vs 澳日利差 — 套息 3.35%→3.10% 收窄, BoJ 加息是平仓导火索, 持仓赔率 4.16 充足; ④USDJPY vs 10Y — 美日利差 +2.625pp 高位, USDJPY 157.12 高位震荡; ⑤<b class='yellow'>韩元(USDKRW) vs 美元/美债</b> — Fed 已加息25bp(09-17) → 美韩利差由 0.625pp 走阔至 0.875pp → <b class='red'>韩元承压, USDKRW 偏多(韩元走弱)</b>, 与日元方向相反(日元因 BoJ 加息走强), 两者共同构成亚太货币的分化格局。结论: 宏观与跨市场一致指向<b class="red">「美元与长端利率偏强 + 日元因政策独立走强」</b>, 事件窗口内不给任何低不确定共振方向, FOMC 后静默。</div></div>"""
+<div class="card-sub">验证链: ①黄金 vs TIPS实际利率(负向) — 实际利率2.68%高位 + 10Y 5.01% → 昨压制今反弹(+1.04%至4338), 属事件前修复非趋势反转; ③AUDJPY vs 澳日利差 — 套息 3.35%→3.10% 收窄, BoJ 加息是平仓导火索, 持仓赔率 4.16 充足; ④USDJPY vs 10Y — 美日利差 +2.625pp 高位, USDJPY 157.12 高位震荡; ⑤<b class='yellow'>韩元(USDKRW) vs 美元/美债</b> — Fed 已加息25bp(09-17) → 美韩利差由 0.625pp 走阔至 0.875pp → <b class='red'>韩元承压, USDKRW 偏多(韩元走弱)</b>, 与日元方向相反(日元因 BoJ 加息走强), 两者共同构成亚太货币的分化格局。结论: 宏观与跨市场一致指向<b class="red">「美元与长端利率偏强 + 日元因政策独立走强」</b>, 事件窗口内不给任何低不确定共振方向, FOMC 后静默。</div></div>"""
 
 # ===================== ⑧ 多周期共振 =====================
 sec08 = """<div class="section"><div class="section-title">📈 八、多周期共振（真实日K + 关键位）</div>
-<div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 数据截至: 日K = Twelve Data 各 200 根, 末根 2026-09-18（取数 13:50 GMT+8）· XAGUSD/USOIL 走金十/OilPriceAPI 替代源已标注</div>
-""" + "".join(charts_html) + silver_oil_note + """
-<div class="sub-title">8.2 关键位（10标的, 每标一个，表格化 · v1.4.3）</div>
+<div class="card-sub" style="margin:2px 0 10px;color:#8a9bc0">⏱ 数据截至: 日K = Twelve Data 各 200 根, 末根 2026-09-18（取数 13:50 GMT+8）</div>
+""" + "".join(charts_html) + """
+<div class="sub-title">8.2 关键位（8标的, 每标一个，表格化 · v1.4.3）</div>
 <table><tr><th>品种</th><th>关键位</th><th>类型</th><th>作用 / 触发条件</th></tr>""" + kl_rows + """</table></div>"""
 
 # ===================== ⑨ 量化验证（v2.5.2: 分标的独立雷达, 不叠加） =====================
@@ -903,8 +893,6 @@ sec11 = """<div class="section"><div class="section-title">🧮 十一、凯利�
 <option value="EURUSD">EURUSD 欧元/美元</option>
 <option value="GBPUSD">GBPUSD 英镑/美元</option>
 <option value="XAUUSD">XAUUSD 现货黄金</option>
-<option value="XAGUSD">XAGUSD 现货白银</option>
-<option value="USOIL">USOIL WTI 原油</option>
 <option value="USDKRW">USDKRW 美元/韩元（关注）</option>
 </select></div>
 <div class="input-group"><label>账户净值 $</label><input id="k_eq" value='""" + str(ACC["equity"]) + """'></div>
@@ -930,8 +918,6 @@ var INST={
  "EURUSD":{pip:1.000,sl:80,px:"1.15551",note:"0.01手=1000单位, pip=0.0001"},
  "GBPUSD":{pip:1.000,sl:90,px:"1.34825",note:"0.01手=1000单位, pip=0.0001"},
  "XAUUSD":{pip:1.000,sl:40,px:"4337.29",note:"0.01手=1盎司, 按$1波动计"},
- "XAGUSD":{pip:0.500,sl:200,px:"64.823",note:"0.01手=50盎司, pip=0.01"},
- "USOIL":{pip:0.100,sl:150,px:"99.614",note:"0.01手=10桶, pip=0.01"},
  "USDKRW":{pip:0.0073,sl:130,px:"1364.38",note:"0.01手=1000美元, pip=0.01（关注品种·不直接交易）"}
 };
 window._pip=INST["AUDJPY"].pip;
@@ -1084,7 +1070,7 @@ sec15 = """<div class="section"><div class="section-title">💡 十五、综合�
 <div class="sub-title">15.3 其余 9 标的判定</div>
 <table><tr><th style="width:14%">标的</th><th style="width:14%">判定</th><th>理由</th></tr>""" + o8_rows + """</table>
 <div class="verdict" style="margin-top:14px"><b>今日总判定</b><br>
-<b>【今日无新仓 · 空仓】</b> —— 全场唯一动作已完成: <b class="green">AUDJPY 0.02 手已按情景 A 全部获利了结（1H 收复 111.00 触发满足 → 主动了结锁利）</b>, 当前空仓等待下一信号。理由：① <b>评分</b> 10 标的中最高仅 AUDJPY 65.30 分 / USDKRW 59.90 分, 均 &lt; 75 建仓线；② <b>事件</b> Fed+BoE+BoJ 三央行决议均已落地, 全程只做持仓管理不开新仓；③ <b>赔率</b> 剩余 R:R 4.16 充足；④ <b>凯利</b> 新开仓理论手数 0.0052 手 &lt; 最小手, 属「不可交易」。<br>
+<b>【今日无新仓 · 空仓】</b> —— 全场唯一动作已完成: <b class="green">AUDJPY 0.02 手已按情景 A 全部获利了结（1H 收复 111.00 触发满足 → 主动了结锁利）</b>, 当前空仓等待下一信号。理由：① <b>评分</b> 8 标的中最高仅 AUDJPY 65.30 分 / USDKRW 59.90 分, 均 &lt; 75 建仓线；② <b>事件</b> Fed+BoE+BoJ 三央行决议均已落地, 全程只做持仓管理不开新仓；③ <b>赔率</b> 剩余 R:R 4.16 充足；④ <b>凯利</b> 新开仓理论手数 0.0052 手 &lt; 最小手, 属「不可交易」。<br>
 <b class="yellow">韩元（USDKRW）专项</b>：4H 三周期多头排列 + MACD 柱持续放大 → 趋势明确向上；但 RSI 78.91 / STOCH 90.07 <b class="red">双超买</b> + 站上回归通道上轨 1355.49, 属「强趋势·位置差」；叠加美韩利差由 0.625pp 走阔至 0.875pp（韩元结构性承压）→ <b class="yellow">纳入框架持续监控, 本日不参与, 不追多不抄顶</b>。<br>
 <b>空仓即结论, 错过即纪律。</b></div>
 </div>"""
@@ -1102,7 +1088,6 @@ sec16 = """<div class="section"><div class="section-title">📚 十八、引用�
 <tr><td>日K线（7 标的：XAUUSD/EURUSD/GBPUSD/USDJPY/AUDUSD/AUDJPY/USDKRW）</td><td>Twelve Data（kline_fetch.py 直连）</td><td>2026-02-28 至 2026-09-18（各 200 根）</td></tr>
 <tr><td>韩国专项（BoK 加息路径 / KOSPI / 韩元贬幅）</td><td>金十快讯 / 韩国央行会议纪要</td><td>2026-09-15</td></tr>
 <tr><td>USDKRW 多周期（4H / 1H / 15min）技术指标</td><td>本次实测抓取（EMA/MACD/RSI/STOCH/通道/布林/ATR）</td><td>2026-09-18</td></tr>
-<tr><td>缺失数据标注</td><td>XAGUSD / USOIL 日K（Twelve Data 404 · 源不支持该符号）</td><td>标注「数据缺失」, 报价改用金十</td></tr>
 </table></div>"""
 
 # ===================== ⑰ 交易决策日志 =====================
@@ -1181,11 +1166,13 @@ _SEC20 = XS.sec20()
 # ===================== 汇总拼装 =====================
 # 顺序严格对齐冻结模板（六·补事件静默节已移除）：1,2,3,4,四·补,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20
 # v2.5.6 授权调准③: 校验报告编号 二十→十九, 交易纪律编号 十九→二十（顺序不变, 纪律仍置末）
+# v2.11.0 调准: 持仓计划模块条件显示 —— SHOW_POSITION_PLAN=True 时展示 2.1, False 时关闭并补上 section 闭合标签
+sec02 = sec02_head + (sec02_position if SHOW_POSITION_PLAN else "</div>")
 html += (sec01 + sec02 + sec03 + sec04 + _SEC04B + sec05 + sec06
          + sec07 + sec08 + sec09 + sec10 + sec11 + sec12 + sec13 + sec14
          + sec15 + sec17 + sec18 + sec16 + _SEC20 + sec19)
 
-html += """<div class="footer">kingforex-skill v2.10.0 决策增强版｜ 基准 """ + NOW + """ ｜ 数据溯源见⑱ ｜ 本分析仅供决策参考, 不代客下单, 不自动交易</div>
+html += """<div class="footer">kingforex-skill v2.11.0 决策增强版｜ 基准 """ + NOW + """ ｜ 数据溯源见⑱ ｜ 本分析仅供决策参考, 不代客下单, 不自动交易</div>
 </div>
 <script>
 """ + "\n".join(charts_js) + """
@@ -1311,41 +1298,43 @@ def freshness_gate(text, label):
 
 print("[鲜度门禁] 『数据截至/取数/末根』中与基准日不符的日期字面量: %d 处%s"
       % (freshness_gate(html, "HTML"), "(已用 --allow-stale 放行)" if _ALLOW_STALE else ""))
-path = os.path.join(OUT, "今日行情分析_决策增强版_v2.10.0_" + NOW_DATE + ".html")
+path = os.path.join(OUT, "今日行情分析_决策增强版_v2.11.0_" + NOW_DATE + ".html")
 open(path, "w", encoding="utf-8").write(html)
 _cdn_after = html.count("cdn.jsdelivr.net")
 print("HTML written:", path, len(html), "bytes | charts:", len(charts_js), "| CDN refs:", _cdn_after)
 
-# ===================== MD 双版本 (19节新顺序 · 10标的) =====================
+# ===================== MD 双版本 (19节新顺序 · 8标的) =====================
 md = []
-md.append("# 今日行情分析 · 决策增强版 v2.10.0")
-md.append("> 基准时间: **" + NOW + "** ｜ kingforex-skill ｜ 10 标的（含韩元 USDKRW 正式纳入框架）｜ 数据溯源见第十六节")
+md.append("# 今日行情分析 · 决策增强版 v2.11.0")
+md.append("> 基准时间: **" + NOW + "** ｜ kingforex-skill ｜ 8 标的（含韩元 USDKRW 正式纳入框架）｜ 数据溯源见第十六节")
 md.append("")
 md.append("## 一、今日决策总览")
-md.append("| 账户状态 | 信号质量 | 凯利最优仓位 | 今日最大风险 |")
+md.append("| 账户状态 | 信号质量 | 凯利最优仓位 | 当天或未来三天的最大风险项 |")
 md.append("| :--- | :--- | :--- | :--- |")
-md.append("| **$" + str(ACC["equity"]) + "** (空仓·三批净已实现+$" + str(REALIZED_ALL) + ") | **B+** (10标的加权) | **" + str(KELLY["rec_lots"]) + "手** (f*=" + str(int(KELLY["f"])) + "%) | **Fed ★★★★★** (09-17 加息92%) |")
+md.append("| **$" + str(ACC["equity"]) + "** (空仓·三批净已实现+$" + str(REALIZED_ALL) + ") | **B+** (8标的加权) | **" + str(KELLY["rec_lots"]) + "手** (f*=" + str(int(KELLY["f"])) + "%) | **Fed ★★★★★** (09-17 加息92%) |")
 md.append("| 持仓风险/上限5% | 可交易1个·观望/关注8个 | 空仓·0.02手已全部获利了结(+$" + str(POS_PNL) + ") | 事件后观望·等待≥75分信号 |")
 md.append("")
 md.append("## 二、今日交易计划（建仓 / 持仓判定）")
-md.append("**【建仓判定：今日不适宜建仓 —— 不建仓】** 理由(四维一致否决): ①宏观(FOMC议息+10Y逼5%); ②评分(10标的均<75); ③凯利(新开仓=0); ④拥挤度(黄金89%/WTI97%)。**空仓即结论, 错过即纪律。**")
+md.append("**【建仓判定：今日不适宜建仓 —— 不建仓】** 理由(四维一致否决): ①宏观(FOMC议息+10Y逼5%); ②评分(8标的均<75); ③凯利(新开仓=0); ④拥挤度(黄金89%/WTI97%)。**空仓即结论, 错过即纪律。**")
+# v2.11.0 调准: MD 持仓计划同样条件显示
+if SHOW_POSITION_PLAN:
+    md.append("")
+    md.append("**2.1 持仓计划（本笔已全部获利了结 · 当前空仓 · AUDJPY 0.02手空单复盘）**")
+    md.append("| 项目 | 内容 |")
+    md.append("| :--- | :--- |")
+    md.append("| 交易标的 | AUDJPY |")
+    md.append("| 方向/手数 | SELL " + str(POS["lots_open"]) + "手 |")
+    md.append("| 入场价/时间 | 114.573 / 2026-09-02(凌晨) |")
+    md.append("| 止损/止盈 | 原SL 113.284→新SL " + str(POS["sl_new"]) + " / TP " + str(POS["tp"]) + " |")
+    md.append("| 入场核心理由 | ①W/D/4H三周期共振空头排列; ②BoJ加息预期vs澳洲按兵不动; ③Hurst" + str(round(h_abs,2)) + "强趋势+OTC转折 |")
+    md.append("| 入场信心指数 | 8/10(三周期+宏观双确认) |")
+    md.append("| 入场情绪状态 | 冷静/按计划执行✓ |")
+    md.append("| 最终盈亏(已实现) | +" + str(round(_pips,1)) + "pips / +$" + str(POS_PNL) + "(+" + str(POS["pct"]) + "%) 已落袋 |")
+    md.append("| 当前状态 | 空仓·已全部获利了结(按1H收复111.00纪律主动了结) |")
+    md.append("| 离场执行(已完成) | ①保护性SL " + str(POS["sl_new"]) + "在位; ②1H收盘站上111.00触发已满足→0.02手已全部获利了结(+$" + str(POS_PNL) + "落袋, 平仓价以实际成交为准); ③当前空仓等待下一信号 |")
+    md.append("| 可能出错 | ①FOMC超预期致USD反弹→已收紧SL控风险; ②日央行干预→SL已收" + str(POS["sl_new"]) + "; ③流动性枯竭跳空→接受滑点不追 |")
 md.append("")
-md.append("**2.1 持仓计划（本笔已全部获利了结 · 当前空仓 · AUDJPY 0.02手空单复盘）**")
-md.append("| 项目 | 内容 |")
-md.append("| :--- | :--- |")
-md.append("| 交易标的 | AUDJPY |")
-md.append("| 方向/手数 | SELL " + str(POS["lots_open"]) + "手 |")
-md.append("| 入场价/时间 | 114.573 / 2026-09-02(凌晨) |")
-md.append("| 止损/止盈 | 原SL 113.284→新SL " + str(POS["sl_new"]) + " / TP " + str(POS["tp"]) + " |")
-md.append("| 入场核心理由 | ①W/D/4H三周期共振空头排列; ②BoJ加息预期vs澳洲按兵不动; ③Hurst" + str(round(h_abs,2)) + "强趋势+OTC转折 |")
-md.append("| 入场信心指数 | 8/10(三周期+宏观双确认) |")
-md.append("| 入场情绪状态 | 冷静/按计划执行✓ |")
-md.append("| 最终盈亏(已实现) | +" + str(round(_pips,1)) + "pips / +$" + str(POS_PNL) + "(+" + str(POS["pct"]) + "%) 已落袋 |")
-md.append("| 当前状态 | 空仓·已全部获利了结(按1H收复111.00纪律主动了结) |")
-md.append("| 离场执行(已完成) | ①保护性SL " + str(POS["sl_new"]) + "在位; ②1H收盘站上111.00触发已满足→0.02手已全部获利了结(+$" + str(POS_PNL) + "落袋, 平仓价以实际成交为准); ③当前空仓等待下一信号 |")
-md.append("| 可能出错 | ①FOMC超预期致USD反弹→已收紧SL控风险; ②日央行干预→SL已收" + str(POS["sl_new"]) + "; ③流动性枯竭跳空→接受滑点不追 |")
-md.append("")
-md.append("## 三、分析标的快照（现价/日内%/区间/结构/MTF/计划判定 · 10标的）")
+md.append("## 三、分析标的快照（现价/日内%/区间/结构/MTF/计划判定 · 8标的）")
 md.append("| 标的 | 现价 | 日内% | 日内区间 | 趋势/结构 | MTF方向 | 计划判定 |")
 md.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
 for s in SNAP_LIST:
@@ -1354,7 +1343,7 @@ for s in SNAP_LIST:
 md.append("")
 md.append("> " + DAY_THEME.replace("<b class='yellow'>", "**").replace("</b>", "**"))
 md.append("")
-md.append("## 四、10标的综合评分卡（≥75可建仓）")
+md.append("## 四、8标的综合评分卡（≥75可建仓）")
 md.append("| 品种 | 宏观 | 技术 | 量化 | 情绪 | 综合 | 判定 |")
 md.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
 for s in SNAP_LIST:
@@ -1381,7 +1370,7 @@ md.append("**5.4 地缘 + 风险偏好**")
 for title, body in GEO_RISK:
     md.append("- **" + title + "**: " + body)
 md.append("")
-md.append("**5.5 宏观大事综合（每标 2 条 · 明确影响 · 10标的）**")
+md.append("**5.5 宏观大事综合（每标 2 条 · 明确影响 · 8标的）**")
 import re as _re
 for sym, events in MACRO2:
     txt = _re.sub(r"<[^>]+>", "", events)
@@ -1410,7 +1399,7 @@ md.append("## 七、跨市场验证")
 md.append("- 黄金vs实际利率(负向,2.46%高位压制); 原油vs中东(97%拥挤警惕回落); AUDJPYvs美日利差(套息3.35%支撑); USDJPYvs10Y(同向偏多); 韩元(USDKRW)vs美元/美债(BoJ加息推升韩元, USDKRW偏空, 与日元同向)。宏观与跨市场未给出低不确定共振方向, FOMC前谨慎。")
 md.append("")
 md.append("## 八、多周期共振 + 关键位")
-md.append("- 7标的日K图见HTML版(含AUDJPY入场/SL/TP/当前标记, USDKRW当前/52周低标记); XAGUSD/USOIL Twelve Data 404/iTick限频, 按铁律不编造价格。")
+md.append("- 7标的日K图见HTML版(含AUDJPY入场/SL/TP/当前标记, USDKRW当前/52周低标记); 按铁律不编造价格。")
 md.append("| 品种 | 关键位 | 类型 | 作用 |")
 md.append("| :--- | :--- | :--- | :--- |")
 for v, kl, tp, act in keylevels:
@@ -1428,12 +1417,12 @@ md.append("| 🐂 B. FOMC鸽派信号 | ~40% | 点阵图偏鸽→美债↓→AUD
 md.append("| ⚡ C. FOMC大超预期+日元干预(尾部) | ~15% | 加息+干预→双向扫损 | SL " + str(POS["sl_new"]) + "触发→市价离场不补仓不反手→观望24h | 最大损失-$" + str(POS["risk_rest"]) + "(" + str(POS["risk_rest_pct"]) + "%) |")
 md.append("")
 md.append("## 十一、凯利仓位计算器（全标的适配）")
-md.append("- 公式: **f*=(p×b−q)/b** ｜ 实战用半凯利(f*/2) ｜ **投资标的下拉**: AUDJPY/USDJPY/EURUSD/GBPUSD/XAUUSD/XAGUSD/USOIL/USDKRW(关注) 全标的自动代入 pip 价值与参考止损距离")
+md.append("- 公式: **f*=(p×b−q)/b** ｜ 实战用半凯利(f*/2) ｜ **投资标的下拉**: AUDJPY/USDJPY/EURUSD/GBPUSD/XAUUSD/USDKRW(关注) 全标的自动代入 pip 价值与参考止损距离")
 md.append("- AUDJPY回测: p=" + str(KELLY["p"]) + "% ｜ b=" + str(KELLY["b"]) + " ｜ f*=" + str(KELLY["f"]) + "% ｜ 半凯利=" + str(KELLY["f_half"]) + "% ｜ 三分之一=" + str(KELLY["f_third"]) + "%")
 md.append("- 本账户: 最优" + str(KELLY["f_half"]) + "% ｜ 最大可亏$" + str(KELLY["max_loss"]) + " ｜ 推荐" + str(KELLY["rec_lots"]) + "手 ｜ 当前空仓(0.02手已全部获利了结+$" + str(POS_PNL) + ")")
 md.append("")
 md.append("## 十二、相关性热力图 + 解读（7标的）")
-md.append("- 高度正相关: XAU↔XAG 0.92 / EUR↔GBP 0.85 / AUDJPY↔USDJPY -0.78 / USDKRW↔USDJPY 0.71; 低相关: USOIL↔AUDJPY 0.12 / XAU↔EUR 0.35 / DXY↔XAU -0.68 / USDKRW↔XAU -0.41")
+md.append("- 高度正相关: EUR↔GBP 0.85 / AUDJPY↔USDJPY -0.78 / USDKRW↔USDJPY 0.71; 低相关: XAU↔EUR 0.35 / DXY↔XAU -0.68 / USDKRW↔XAU -0.41")
 md.append("- 组合诊断: AUDJPY空单1笔, 集中度低; 隐含暴露=日元走强+澳元走弱; 韩元(USDKRW)与日元正相关0.71, 同属亚太套息货币; 做多日元优先AUDJPY(方向更纯)")
 md.append("")
 md.append("## 十三、账户风险仪表盘")
@@ -1476,7 +1465,7 @@ md.append("| :--- | :--- | :--- |")
 for sym, verdict, reason in OTHER8:
     md.append("| " + sym + " | " + verdict + " | " + reason + " |")
 md.append("")
-md.append("**今日总判定**: 【今日无新仓】—— 全场唯一动作是**管理 AUDJPY 0.02 手空单**（情景A: 确认保护 SL " + str(POS["sl_new"]) + " + 保留 TP + 1H 收复 111.00 触发已满足 → 主动了结）。理由: ①评分 10 标的最高仅 65.30 <75 建仓线; ②Fed+BoE+BoJ 三央行周已过; ③剩余 R:R 4.16 充足; ④凯利新开仓理论手数 0.0052 < 最小手 → 「不可交易」。**韩元(USDKRW)专项**: 4H 三周期多头 + MACD 柱放大 = 趋势强, 但 RSI 78.91/STOCH 90.07 双超买 + 美韩利差走阔至 0.875pp = 「强趋势·位置差」→ **纳入框架持续监控, 本日不参与, 不追多不抄顶**。空仓即结论, 错过即纪律。")
+md.append("**今日总判定**: 【今日无新仓】—— 全场唯一动作是**管理 AUDJPY 0.02 手空单**（情景A: 确认保护 SL " + str(POS["sl_new"]) + " + 保留 TP + 1H 收复 111.00 触发已满足 → 主动了结）。理由: ①评分 8 标的最高仅 65.30 <75 建仓线; ②Fed+BoE+BoJ 三央行周已过; ③剩余 R:R 4.16 充足; ④凯利新开仓理论手数 0.0052 < 最小手 → 「不可交易」。**韩元(USDKRW)专项**: 4H 三周期多头 + MACD 柱放大 = 趋势强, 但 RSI 78.91/STOCH 90.07 双超买 + 美韩利差走阔至 0.875pp = 「强趋势·位置差」→ **纳入框架持续监控, 本日不参与, 不追多不抄顶**。空仓即结论, 错过即纪律。")
 md.append("")
 md.append("## 十八、引用与依据")
 md.append("| 数据 | 源 | 截至 |")
@@ -1489,7 +1478,7 @@ md.append("| 持仓拥挤度 | CFTC COT | 09-01 / 08-25 |")
 md.append("| 日K线 | Twelve Data/Frankfurter/WebSearch | 02至09-15 |")
 md.append("")
 md.append("## 十六、交易决策日志")
-md.append("（同 2.1 持仓计划表, 此处为日志记录版）AUDJPY SELL " + str(POS["lots_open"]) + "手, 入场114.573, 新SL " + str(POS["sl_new"]) + ", TP " + str(POS["tp"]) + ", 净已实现+$" + str(ACC["floating"]) + "(+" + str(POS["pct"]) + "%), 已走75%预期幅度, 已按4步离场计划全部获利了结。")
+md.append("AUDJPY SELL " + str(POS["lots_open"]) + "手, 入场114.573, 新SL " + str(POS["sl_new"]) + ", TP " + str(POS["tp"]) + ", 净已实现+$" + str(ACC["floating"]) + "(+" + str(POS["pct"]) + "%), 已走75%预期幅度, 已按4步离场计划全部获利了结。")
 md.append("")
 md.append("## 十七、信号历史回测（样本有限·仅供参考）")
 md.append("- " + str(BT["n"]) + "笔 ｜ " + str(BT["win"]) + "胜/" + str(BT["loss"]) + "负 ｜ 胜率" + str(BT["winrate"]) + "% ｜ 盈亏比" + str(BT["pl"]) + ":1 ｜ 期望+" + str(BT["exp"]) + "R ｜ 回撤-" + str(BT["max_dd"]) + "R ｜ 利润因子" + str(BT["pf"]))
@@ -1508,8 +1497,8 @@ for cat, items in DISCIPLINE6:
     md.append("- **" + cat + "**: " + "; ".join(items))
 md.append("")
 md.append("---")
-md.append("kingforex-skill v2.10.0 决策增强版｜ 仅供决策参考, 不代客下单, 不自动交易")
-md_path = os.path.join(OUT, "今日行情分析_决策增强版_v2.10.0_" + NOW_DATE + ".md")
+md.append("kingforex-skill v2.11.0 决策增强版｜ 仅供决策参考, 不代客下单, 不自动交易")
+md_path = os.path.join(OUT, "今日行情分析_决策增强版_v2.11.0_" + NOW_DATE + ".md")
 # 修复(2026-09-28): 原为两份完全相同的 _md_subs 循环(等价冗余), 已合并为一份。
 _md_subs = _html_subs + []
 for i in range(len(md)):
@@ -1588,6 +1577,6 @@ for i in range(4, 10):
     for c in range(1, len(cols4)+1): ws4.cell(row=i, column=c).border = border
 for i, w in enumerate([8,9,8,8,8,11,13,13,12,28,28], 1):
     ws4.column_dimensions[chr(64+i)].width = w
-xl_path = os.path.join(OUT, "交易复盘模板_v2.10.0.xlsx")
+xl_path = os.path.join(OUT, "交易复盘模板_v2.11.0.xlsx")
 wb.save(xl_path)
 print("XLSX written:", xl_path)
